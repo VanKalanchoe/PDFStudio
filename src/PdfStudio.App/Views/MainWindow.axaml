@@ -1204,6 +1204,54 @@
               </Grid>
             </StackPanel>
 
+            <!-- Updates Section -->
+            <Border Background="{DynamicResource CardHeaderBgBrush}"
+                    BorderBrush="{DynamicResource BorderHairlineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="12,10">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Loc.UpdatesHeading}"
+                               FontSize="12"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding CurrentAppVersionLabel}"
+                               Classes="muted"
+                               FontSize="11" />
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Classes="inspector-action"
+                          Width="148"
+                          Height="28"
+                          IsEnabled="{Binding !IsCheckingOrInstallingUpdate}"
+                          Content="{Binding Loc.CheckUpdatesButton}"
+                          Command="{Binding CheckForUpdatesCommand}" />
+                </Grid>
+
+                <TextBlock Text="{Binding UpdateStatusText}"
+                           IsVisible="{Binding UpdateStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           FontSize="11"
+                           Foreground="{DynamicResource AccentBlueBrush}"
+                           TextWrapping="Wrap" />
+
+                <Button Content="{Binding Loc.InstallUpdateButton}"
+                        IsVisible="{Binding HasAvailableUpdate}"
+                        IsEnabled="{Binding !IsCheckingOrInstallingUpdate}"
+                        Height="30"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        CornerRadius="4"
+                        Background="{DynamicResource AccentBlueBrush}"
+                        Foreground="#FFFFFF"
+                        FontSize="11.5"
+                        FontWeight="SemiBold"
+                        Cursor="Hand"
+                        Command="{Binding InstallUpdateCommand}" />
+              </StackPanel>
+            </Border>
+
             <!-- Shortcuts Reference -->
             <Border Background="{DynamicResource CardHeaderBgBrush}"
                     BorderBrush="{DynamicResource BorderHairlineBrush}"

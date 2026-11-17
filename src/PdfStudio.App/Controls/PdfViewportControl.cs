@@ -424,7 +424,6 @@ public sealed class PdfViewportControl : Control
                 {
                     DocumentTab.SelectedImage = null;
                     DocumentTab.CurrentPageIndex = hitPageIndex;
-                    DocumentTab.SelectedTextBlock = hit;
                     BlockEditRequested?.Invoke(this, hit);
                     InvalidateVisual();
                     e.Handled = true;

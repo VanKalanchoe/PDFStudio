@@ -141,6 +141,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _isSettingsOpen;
 
+    [ObservableProperty]
+    private bool _isCheckingOrInstallingUpdate;
+
+    [ObservableProperty]
+    private bool _hasAvailableUpdate;
+
+    [ObservableProperty]
+    private string _updateStatusText = string.Empty;
+
+    private readonly AppUpdateService _updateService = new();
+    private AppUpdateCheckResult? _availableUpdate;
     private List<string> _allFontFamilies;
 
     public MainWindowViewModel()
@@ -167,9 +178,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         FontStatusBadgeText = Loc.SelectBlockBadge;
 
         _ = LoadSystemFontFamiliesAsync();
+        _ = CheckForUpdatesSilentlyAsync();
     }
 
     public LocalizationService Loc { get; } = new();
+    public string CurrentAppVersionLabel => Loc.CurrentVersionText(AppUpdateService.CurrentVersionString);
 
     private string[] BuildZoomPresets() =>
         ["50%", "75%", "100%", "125%", "150%", "200%", Loc.FitWidthPreset, Loc.FitPagePreset];
@@ -347,6 +360,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void SyncInspectorFromBlock(PdfTextBlock? block)
     {
+        if (IsEditingInline && EditingBlock is not null && block?.Id != EditingBlock.Id)
+        {
+            return;
+        }
+
         if (block is null)
         {
             FontStatusBadgeText = Loc.SelectBlockBadge;
@@ -393,10 +411,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             ? "Embedded font • Missing glyphs auto-matched"
             : "Standard PDF font • System match ready";
 
-        BlockXText = string.Format(CultureInfo.InvariantCulture, "{0:0}", Math.Round(block.Bounds.Left));
-        BlockYText = string.Format(CultureInfo.InvariantCulture, "{0:0}", Math.Round(block.Bounds.Top));
-        BlockWText = string.Format(CultureInfo.InvariantCulture, "{0:0}", Math.Round(block.Bounds.Width));
-        BlockHText = string.Format(CultureInfo.InvariantCulture, "{0:0}", Math.Round(block.Bounds.Height));
+        BlockXText = string.Format(CultureInfo.InvariantCulture, "{0:0.##}", block.Bounds.Left);
+        BlockYText = string.Format(CultureInfo.InvariantCulture, "{0:0.##}", block.Bounds.Top);
+        BlockWText = string.Format(CultureInfo.InvariantCulture, "{0:0.##}", block.Bounds.Width);
+        BlockHText = string.Format(CultureInfo.InvariantCulture, "{0:0.##}", block.Bounds.Height);
         InlineLayoutUpdateRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -816,9 +834,112 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         OnPropertyChanged(nameof(StatusBarText));
+        OnPropertyChanged(nameof(CurrentAppVersionLabel));
+        if (_availableUpdate is not null)
+        {
+            UpdateStatusText = _availableUpdate.IsUpdateAvailable
+                ? Loc.UpdateAvailableText(_availableUpdate.LatestVersion)
+                : Loc.UpToDateText(_availableUpdate.CurrentVersion);
+        }
+
         StatusNotification = Loc.IsGerman
             ? "Sprache auf Deutsch umgestellt."
             : "Language switched to English.";
+    }
+
+    private async Task CheckForUpdatesSilentlyAsync()
+    {
+        try
+        {
+            var result = await _updateService.CheckForUpdatesAsync().ConfigureAwait(false);
+            if (!result.IsUpdateAvailable)
+            {
+                return;
+            }
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _availableUpdate = result;
+                HasAvailableUpdate = true;
+                UpdateStatusText = Loc.UpdateAvailableText(result.LatestVersion);
+                if (string.IsNullOrEmpty(StatusNotification))
+                {
+                    StatusNotification = Loc.UpdateAvailableText(result.LatestVersion);
+                }
+            });
+        }
+        catch
+        {
+            // Offline or GitHub rate-limit: stay silent on background startup check
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync()
+    {
+        if (IsCheckingOrInstallingUpdate)
+        {
+            return;
+        }
+
+        IsCheckingOrInstallingUpdate = true;
+        UpdateStatusText = Loc.CheckingUpdatesText;
+        try
+        {
+            var result = await _updateService.CheckForUpdatesAsync();
+            _availableUpdate = result;
+            HasAvailableUpdate = result.IsUpdateAvailable;
+            UpdateStatusText = result.IsUpdateAvailable
+                ? Loc.UpdateAvailableText(result.LatestVersion)
+                : Loc.UpToDateText(result.CurrentVersion);
+        }
+        catch (Exception ex)
+        {
+            HasAvailableUpdate = false;
+            UpdateStatusText = Loc.UpdateCheckFailedText(ex.Message);
+        }
+        finally
+        {
+            IsCheckingOrInstallingUpdate = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallUpdateAsync()
+    {
+        if (IsCheckingOrInstallingUpdate || _availableUpdate is not { IsUpdateAvailable: true } update)
+        {
+            return;
+        }
+
+        IsCheckingOrInstallingUpdate = true;
+        UpdateStatusText = Loc.DownloadingUpdateText("0%");
+        try
+        {
+            var progress = new Progress<string>(pct => UpdateStatusText = Loc.DownloadingUpdateText(pct));
+            bool restarting = await _updateService.DownloadAndApplyUpdateAsync(update, progress);
+            if (restarting)
+            {
+                UpdateStatusText = Loc.InstallingUpdateText;
+                if (Avalonia.Application.Current?.ApplicationLifetime is
+                    Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    desktop.Shutdown();
+                }
+            }
+            else
+            {
+                UpdateStatusText = Loc.UpdateOpenedBrowserText;
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText = Loc.UpdateCheckFailedText(ex.Message);
+        }
+        finally
+        {
+            IsCheckingOrInstallingUpdate = false;
+        }
     }
 
     [RelayCommand]

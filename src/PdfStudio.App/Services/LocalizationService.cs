@@ -124,6 +124,19 @@ public sealed class LocalizationService : ObservableObject
         "Strg+O Öffnen  •  Strg+S Speichern  •  Strg+Z/Y Rückgängig\nStrg+F Suchen  •  T Text bearbeiten  •  V Auswahl  •  Entf Bild löschen");
     public string CloseButton => T("Close", "Schließen");
 
+    // Updates
+    public string UpdatesHeading => T("Updates", "Aktualisierungen");
+    public string CheckUpdatesButton => T("Check for Updates", "Nach Updates suchen");
+    public string InstallUpdateButton => T("Download & Install", "Laden & Installieren");
+    public string CurrentVersionText(string ver) => T($"Current version: v{ver}", $"Aktuelle Version: v{ver}");
+    public string CheckingUpdatesText => T("Checking GitHub Releases...", "Prüfe GitHub Releases...");
+    public string UpToDateText(string ver) => T($"You are up to date (v{ver}).", $"Aktuellste Version installiert (v{ver}).");
+    public string UpdateAvailableText(string ver) => T($"Update v{ver} is available!", $"Update v{ver} ist verfügbar!");
+    public string DownloadingUpdateText(string pct) => T($"Downloading update... {pct}", $"Update wird geladen... {pct}");
+    public string InstallingUpdateText => T("Installing update and restarting...", "Update wird installiert & neu gestartet...");
+    public string UpdateCheckFailedText(string err) => T($"Update check failed: {err}", $"Update-Prüfung fehlgeschlagen: {err}");
+    public string UpdateOpenedBrowserText => T("Opened release page in your browser.", "Release-Seite im Browser geöffnet.");
+
     // Dynamic status messages
     public string MsgOpenPdfFirst => T("Open a PDF document first.", "Bitte zuerst ein PDF-Dokument öffnen.");
     public string MsgSampleLoaded => T("Loaded built-in sample PDF.", "Beispiel-PDF geladen.");

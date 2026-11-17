@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <Version>0.0.1</Version>
     <RootNamespace>PdfStudio.App</RootNamespace>
     <AssemblyName>PdfStudio.App</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

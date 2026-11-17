@@ -34,14 +34,17 @@ jobs:
         run: dotnet test tests/PdfStudio.Core.Tests/PdfStudio.Core.Tests.csproj -c Release --no-restore --verbosity normal
 
       - name: Publish Windows x64 portable build
-        run: >
-          dotnet publish src/PdfStudio.App/PdfStudio.App.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:DebugType=None
-          -p:DebugSymbols=false
-          -o dist/PdfStudio-win-x64
+        shell: pwsh
+        run: |
+          $ver = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.TrimStart('v').Split('-')[0] } else { '0.0.1' }
+          dotnet publish src/PdfStudio.App/PdfStudio.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:Version=$ver `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -o dist/PdfStudio-win-x64
 
       - name: Zip Windows x64 package
         shell: pwsh
@@ -76,14 +79,20 @@ jobs:
           dotnet-version: 9.0.x
 
       - name: Publish macOS x64 self-contained build
-        run: >
-          dotnet publish src/PdfStudio.App/PdfStudio.App.csproj
-          -c Release
-          -r osx-x64
-          --self-contained true
-          -p:DebugType=None
-          -p:DebugSymbols=false
-          -o dist/publish-macos-x64
+        run: |
+          APP_VER="0.0.1"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            APP_VER="${GITHUB_REF_NAME#v}"
+            APP_VER="${APP_VER%%-*}"
+          fi
+          dotnet publish src/PdfStudio.App/PdfStudio.App.csproj \
+            -c Release \
+            -r osx-x64 \
+            --self-contained true \
+            -p:Version="$APP_VER" \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -o dist/publish-macos-x64
 
       - name: Assemble PdfStudio.app bundle
         run: |

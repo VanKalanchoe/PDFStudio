@@ -1,0 +1,45 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Core Palette Tokens (PROJECT_BRIEF.md) -->
+  <Color x:Key="AppCanvasBgColor">#10131B</Color>
+  <Color x:Key="PanelBgColor">#181C26</Color>
+  <Color x:Key="CardHeaderBgColor">#202533</Color>
+  <Color x:Key="ElevatedSurfaceColor">#2A3144</Color>
+  <Color x:Key="BorderHairlineColor">#333C52</Color>
+  <Color x:Key="AccentBlueColor">#4287F5</Color>
+  <Color x:Key="AccentBlueHoverColor">#5997F9</Color>
+  <Color x:Key="AccentBluePressedColor">#3474DC</Color>
+  <Color x:Key="ToggleActiveGreenColor">#3CAD7B</Color>
+  <Color x:Key="WarningColor">#D99D39</Color>
+  <Color x:Key="DangerColor">#D54F55</Color>
+  <Color x:Key="TextPrimaryColor">#EAEDF3</Color>
+  <Color x:Key="TextMutedColor">#949DAF</Color>
+  <Color x:Key="InputBgColor">#131722</Color>
+  <Color x:Key="TitleBarBgColor">#141822</Color>
+  <Color x:Key="CardBodyBgColor">#1A1F2B</Color>
+
+  <!-- Semantic Brushes -->
+  <SolidColorBrush x:Key="AppCanvasBgBrush" Color="{StaticResource AppCanvasBgColor}" />
+  <SolidColorBrush x:Key="PanelBgBrush" Color="{StaticResource PanelBgColor}" />
+  <SolidColorBrush x:Key="TitleBarBgBrush" Color="{StaticResource TitleBarBgColor}" />
+  <SolidColorBrush x:Key="CardHeaderBgBrush" Color="{StaticResource CardHeaderBgColor}" />
+  <SolidColorBrush x:Key="CardBodyBgBrush" Color="{StaticResource CardBodyBgColor}" />
+  <SolidColorBrush x:Key="ElevatedSurfaceBrush" Color="{StaticResource ElevatedSurfaceColor}" />
+  <SolidColorBrush x:Key="InputBgBrush" Color="{StaticResource InputBgColor}" />
+  <SolidColorBrush x:Key="BorderHairlineBrush" Color="{StaticResource BorderHairlineColor}" />
+  <SolidColorBrush x:Key="AccentBlueBrush" Color="{StaticResource AccentBlueColor}" />
+  <SolidColorBrush x:Key="AccentBlueHoverBrush" Color="{StaticResource AccentBlueHoverColor}" />
+  <SolidColorBrush x:Key="AccentBluePressedBrush" Color="{StaticResource AccentBluePressedColor}" />
+  <SolidColorBrush x:Key="ToggleActiveGreenBrush" Color="{StaticResource ToggleActiveGreenColor}" />
+  <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+  <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+  <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
+
+  <!-- Subtle translucent overlays -->
+  <SolidColorBrush x:Key="SubtleHoverBrush" Color="#1FFFFFFF" />
+  <SolidColorBrush x:Key="SubtlePressedBrush" Color="#2EFFFFFF" />
+  <SolidColorBrush x:Key="AccentSubtleTintBrush" Color="#264287F5" />
+  <SolidColorBrush x:Key="GreenSubtleTintBrush" Color="#263CAD7B" />
+  <SolidColorBrush x:Key="PageShadowBrush" Color="#7A000000" />
+</ResourceDictionary>

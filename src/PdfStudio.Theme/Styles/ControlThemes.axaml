@@ -1,0 +1,314 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Base Window & Typography defaults -->
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource AppCanvasBgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <Style Selector="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.muted">
+    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.inspector-label">
+    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Hairline dividers -->
+  <Style Selector="Border.hairline-h">
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource BorderHairlineBrush}" />
+  </Style>
+
+  <Style Selector="Border.hairline-v">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource BorderHairlineBrush}" />
+  </Style>
+
+  <!-- Compact Toolbar Icon Button -->
+  <Style Selector="Button.toolbar-icon">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.toolbar-icon:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.toolbar-icon:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource BorderHairlineBrush}" />
+  </Style>
+  <Style Selector="Button.toolbar-icon:disabled">
+    <Setter Property="Opacity" Value="0.4" />
+  </Style>
+
+  <!-- Centered Tool Strip ToggleButton (Select, Edit Text, Add Image, etc.) -->
+  <Style Selector="ToggleButton.tool-strip">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="ToggleButton.tool-strip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.tool-strip:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentBlueBrush}" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+  <Style Selector="ToggleButton.tool-strip:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentBlueHoverBrush}" />
+  </Style>
+
+  <!-- Segmented formatting / alignment toggles -->
+  <Style Selector="ToggleButton.segmented">
+    <Setter Property="Background" Value="{DynamicResource InputBgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="MinWidth" Value="26" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="ToggleButton.segmented:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.segmented:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentBlueBrush}" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <!-- Inspector Full-Width Action Button -->
+  <Style Selector="Button.inspector-action">
+    <Setter Property="Background" Value="{DynamicResource CardHeaderBgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="29" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.inspector-action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlueBrush}" />
+  </Style>
+  <Style Selector="Button.inspector-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource BorderHairlineBrush}" />
+  </Style>
+
+  <!-- Window Chrome Button -->
+  <Style Selector="Button.window-chrome">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Width" Value="42" />
+    <Setter Property="Height" Value="40" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.window-chrome:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.window-chrome.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <!-- Document Tab Close Button -->
+  <Style Selector="Button.tab-close">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.tab-close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+
+  <!-- Inspector Input TextBox -->
+  <Style Selector="TextBox.inspector-input">
+    <Setter Property="Background" Value="{DynamicResource InputBgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="7,4" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="CaretBrush" Value="{DynamicResource AccentBlueBrush}" />
+  </Style>
+  <Style Selector="TextBox.inspector-input:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource ElevatedSurfaceBrush}" />
+  </Style>
+  <Style Selector="TextBox.inspector-input:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlueBrush}" />
+    <Setter Property="Background" Value="{DynamicResource InputBgBrush}" />
+  </Style>
+
+  <!-- Inspector & Toolbar ComboBox (scrollable, clamped popup) -->
+  <Style Selector="ComboBox.inspector-combo">
+    <Setter Property="Background" Value="{DynamicResource InputBgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="MaxDropDownHeight" Value="220" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="ComboBox.inspector-combo:pointerover /template/ Border#Background">
+    <Setter Property="Background" Value="{DynamicResource CardHeaderBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ElevatedSurfaceBrush}" />
+  </Style>
+  <Style Selector="ComboBox.inspector-combo /template/ Popup#PART_Popup">
+    <Setter Property="Placement" Value="BottomEdgeAlignedLeft" />
+    <Setter Property="WindowManagerAddShadowHint" Value="False" />
+  </Style>
+  <Style Selector="ComboBox.inspector-combo /template/ Popup#PART_Popup Border">
+    <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+
+  <!-- Pill ToggleSwitch (#3CAD7B active green) -->
+  <Style Selector="ToggleSwitch.pill-switch">
+    <Setter Property="OnContent" Value="" />
+    <Setter Property="OffContent" Value="" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinWidth" Value="36" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="ToggleSwitch.pill-switch /template/ Border#SwitchBackground">
+    <Setter Property="Background" Value="{DynamicResource CardHeaderBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="CornerRadius" Value="9" />
+  </Style>
+  <Style Selector="ToggleSwitch.pill-switch:checked /template/ Border#SwitchBackground">
+    <Setter Property="Background" Value="{DynamicResource ToggleActiveGreenBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ToggleActiveGreenBrush}" />
+  </Style>
+  <Style Selector="ToggleSwitch.pill-switch /template/ Border#SwitchKnobBounds">
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="18" />
+  </Style>
+  <Style Selector="ToggleSwitch.pill-switch /template/ Ellipse#SwitchKnobOff">
+    <Setter Property="Fill" Value="{DynamicResource TextMutedBrush}" />
+    <Setter Property="Width" Value="12" />
+    <Setter Property="Height" Value="12" />
+  </Style>
+  <Style Selector="ToggleSwitch.pill-switch /template/ Ellipse#SwitchKnobOn">
+    <Setter Property="Fill" Value="#FFFFFF" />
+    <Setter Property="Width" Value="12" />
+    <Setter Property="Height" Value="12" />
+  </Style>
+
+  <!-- Status Bar Zoom Slider -->
+  <Style Selector="Slider.status-zoom">
+    <Setter Property="Minimum" Value="25" />
+    <Setter Property="Maximum" Value="400" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Slider.status-zoom /template/ Thumb">
+    <Setter Property="Width" Value="10" />
+    <Setter Property="Height" Value="10" />
+    <Setter Property="Background" Value="{DynamicResource AccentBlueBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="5" />
+  </Style>
+
+  <!-- Slim Sidebar Tab Toggle -->
+  <Style Selector="RadioButton.sidebar-tab">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0,0,0,2" />
+    <Setter Property="Padding" Value="0,8" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                Padding="{TemplateBinding Padding}">
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="RadioButton.sidebar-tab:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="RadioButton.sidebar-tab:checked">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlueBrush}" />
+  </Style>
+
+  <!-- Slim Dark ScrollBar -->
+  <Style Selector="ScrollBar">
+    <Setter Property="AllowAutoHide" Value="True" />
+  </Style>
+  <Style Selector="ScrollBar:vertical">
+    <Setter Property="Width" Value="8" />
+  </Style>
+  <Style Selector="ScrollBar:horizontal">
+    <Setter Property="Height" Value="8" />
+  </Style>
+</Styles>

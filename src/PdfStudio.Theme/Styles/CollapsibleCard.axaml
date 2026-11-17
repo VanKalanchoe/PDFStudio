@@ -1,0 +1,89 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:PdfStudio.Theme.Controls">
+  <Style Selector="controls|CollapsibleCard">
+    <Setter Property="Background" Value="{DynamicResource CardBodyBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHairlineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    <Setter Property="Padding" Value="10,10,10,11" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}"
+                ClipToBounds="True">
+          <StackPanel>
+            <ToggleButton x:Name="PART_HeaderToggle"
+                          IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Background="{DynamicResource CardHeaderBgBrush}"
+                          BorderThickness="0"
+                          Padding="10,7"
+                          CornerRadius="0"
+                          Cursor="Hand">
+              <ToggleButton.Styles>
+                <Style Selector="ToggleButton /template/ ContentPresenter#PART_ContentPresenter">
+                  <Setter Property="Background" Value="Transparent" />
+                </Style>
+                <Style Selector="ToggleButton:pointerover">
+                  <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+                </Style>
+                <Style Selector="ToggleButton:checked">
+                  <Setter Property="Background" Value="{DynamicResource CardHeaderBgBrush}" />
+                </Style>
+                <Style Selector="ToggleButton:checked:pointerover">
+                  <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBrush}" />
+                </Style>
+              </ToggleButton.Styles>
+              <Grid ColumnDefinitions="*,Auto">
+                <ContentPresenter Grid.Column="0"
+                                  Content="{TemplateBinding Header}"
+                                  ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                  VerticalAlignment="Center"
+                                  TextElement.FontSize="11"
+                                  TextElement.FontWeight="SemiBold"
+                                  TextElement.Foreground="{DynamicResource TextPrimaryBrush}" />
+                <Path x:Name="PART_Chevron"
+                      Grid.Column="1"
+                      Data="{DynamicResource IconChevronDown}"
+                      Stroke="{DynamicResource TextMutedBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Width="12"
+                      Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      RenderTransformOrigin="50%,50%">
+                  <Path.RenderTransform>
+                    <RotateTransform Angle="0" />
+                  </Path.RenderTransform>
+                </Path>
+              </Grid>
+            </ToggleButton>
+
+            <Border x:Name="PART_Divider"
+                    Height="1"
+                    Background="{DynamicResource BorderHairlineBrush}"
+                    IsVisible="{TemplateBinding IsExpanded}" />
+
+            <ContentPresenter x:Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Margin="{TemplateBinding Padding}"
+                              IsVisible="{TemplateBinding IsExpanded}" />
+          </StackPanel>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="controls|CollapsibleCard[IsExpanded=True] /template/ Path#PART_Chevron">
+    <Setter Property="RenderTransform">
+      <RotateTransform Angle="180" />
+    </Setter>
+  </Style>
+</Styles>

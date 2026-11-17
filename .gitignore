@@ -1,0 +1,22 @@
+# Build & Release artifacts
+.artifacts/
+artifacts/
+bin/
+obj/
+publish/
+dist/
+*.zip
+
+# IDE / User files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+*.DotSettings.user
+
+# OS / Logs
+Thumbs.db
+Desktop.ini
+*.log

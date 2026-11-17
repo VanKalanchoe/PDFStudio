@@ -1,0 +1,1236 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:PdfStudio.App.ViewModels"
+        xmlns:models="clr-namespace:PdfStudio.App.Models"
+        xmlns:controls="clr-namespace:PdfStudio.App.Controls"
+        xmlns:themeControls="clr-namespace:PdfStudio.Theme.Controls;assembly=PdfStudio.Theme"
+        mc:Ignorable="d"
+        x:Class="PdfStudio.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="PdfStudio"
+        Width="1360"
+        Height="860"
+        MinWidth="960"
+        MinHeight="620"
+        Background="{DynamicResource AppCanvasBgBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="40"
+        DragDrop.AllowDrop="True">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding RequestOpenFileCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveDocumentCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsDocumentCommand}" />
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}" />
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}" />
+    <KeyBinding Gesture="Ctrl+F" Command="{Binding ToggleFindCommand}" />
+    <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomInCommand}" />
+    <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}" />
+  </Window.KeyBindings>
+
+  <Border x:Name="WindowRootBorder" Background="{DynamicResource AppCanvasBgBrush}">
+    <Grid>
+      <Grid RowDefinitions="40,1,42,1,*,1,24">
+
+    <!-- 1. Custom Dark Titlebar + Document Tab Strip -->
+    <Grid Grid.Row="0"
+          Background="{DynamicResource TitleBarBgBrush}"
+          ColumnDefinitions="Auto,*,Auto"
+          PointerPressed="OnTitleBarPointerPressed">
+
+      <!-- App Brand Mark -->
+      <StackPanel Grid.Column="0"
+                  Orientation="Horizontal"
+                  Spacing="8"
+                  Margin="14,0,12,0"
+                  VerticalAlignment="Center"
+                  IsHitTestVisible="False">
+        <Border Width="18"
+                Height="18"
+                CornerRadius="3"
+                Background="{DynamicResource AccentBlueBrush}">
+          <Path Data="{DynamicResource IconDocument}"
+                Stroke="#FFFFFF"
+                StrokeThickness="1.5"
+                Width="11"
+                Height="11"
+                Stretch="Uniform"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Text="PdfStudio"
+                   FontSize="12"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   VerticalAlignment="Center" />
+      </StackPanel>
+
+      <!-- Document Tabs + New/Open Tab button -->
+      <ScrollViewer Grid.Column="1"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Disabled">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Stretch">
+          <ItemsControl ItemsSource="{Binding Tabs}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DocumentTabViewModel">
+                <Border MinWidth="136"
+                        MaxWidth="220"
+                        Height="34"
+                        Margin="0,6,2,0"
+                        CornerRadius="6,6,0,0"
+                        BorderBrush="{DynamicResource BorderHairlineBrush}"
+                        BorderThickness="1,1,1,0"
+                        Cursor="Hand"
+                        Tag="{Binding IsActive}"
+                        PointerPressed="OnDocumentTabPointerPressed">
+                  <Border.Styles>
+                    <Style Selector="Border">
+                      <Setter Property="Background" Value="{DynamicResource TitleBarBgBrush}" />
+                    </Style>
+                    <Style Selector="Border[Tag=True]">
+                      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
+                    </Style>
+                  </Border.Styles>
+                  <Grid RowDefinitions="*,2">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,0,6,0">
+                      <TextBlock Grid.Column="0"
+                                 Text="{Binding TabTitle}"
+                                 FontSize="11.5"
+                                 VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis"
+                                 Foreground="{DynamicResource TextPrimaryBrush}" />
+                      <Button Grid.Column="1"
+                              Classes="tab-close"
+                              Margin="6,0,0,0"
+                              Click="OnCloseTabButtonClick">
+                        <Path Data="{DynamicResource IconClose}"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.4"
+                              StrokeLineCap="Round"
+                              Width="9"
+                              Height="9"
+                              Stretch="Uniform" />
+                      </Button>
+                    </Grid>
+                    <Border Grid.Row="1"
+                            Height="2"
+                            Background="{DynamicResource AccentBlueBrush}"
+                            IsVisible="{Binding IsActive}" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Button Classes="toolbar-icon"
+                  Margin="4,4,0,0"
+                  Width="26"
+                  Height="26"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding Loc.OpenPdfTooltip}"
+                  Command="{Binding RequestOpenFileCommand}">
+            <Path Data="{DynamicResource IconPlus}"
+                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  StrokeThickness="1.5"
+                  StrokeLineCap="Round"
+                  Width="11"
+                  Height="11"
+                  Stretch="Uniform" />
+          </Button>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Window Chrome Buttons -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch">
+        <Button Classes="window-chrome" ToolTip.Tip="{Binding Loc.MinimizeTooltip}" Click="OnMinimizeClick">
+          <Border Width="10"
+                  Height="1.5"
+                  CornerRadius="0.75"
+                  Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center" />
+        </Button>
+        <Button Classes="window-chrome" ToolTip.Tip="{Binding Loc.MaximizeTooltip}" Click="OnMaximizeRestoreClick">
+          <Path Data="{DynamicResource IconMaximize}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.3"
+                Width="10"
+                Height="10"
+                Stretch="Uniform" />
+        </Button>
+        <Button Classes="window-chrome close" ToolTip.Tip="{Binding Loc.CloseWindowTooltip}" Click="OnCloseWindowClick">
+          <Path Data="{DynamicResource IconClose}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.4"
+                StrokeLineCap="Round"
+                Width="10"
+                Height="10"
+                Stretch="Uniform" />
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <Border Grid.Row="1" Classes="hairline-h" />
+
+    <!-- 2. Main Action Toolbar -->
+    <Grid Grid.Row="2"
+          Background="{DynamicResource PanelBgBrush}"
+          ColumnDefinitions="*,Auto,*"
+          Margin="0">
+
+      <!-- Left File / History Actions -->
+      <StackPanel Grid.Column="0"
+                  Orientation="Horizontal"
+                  Spacing="4"
+                  Margin="12,0"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Left">
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.OpenPdfTooltip}"
+                Command="{Binding RequestOpenFileCommand}">
+          <Path Data="{DynamicResource IconOpenFolder}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.SavePdfTooltip}"
+                IsEnabled="{Binding CanSave}"
+                Command="{Binding SaveDocumentCommand}">
+          <Path Data="{DynamicResource IconSave}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.UndoTooltip}"
+                IsEnabled="{Binding CanUndo}"
+                Command="{Binding UndoCommand}">
+          <Path Data="{DynamicResource IconUndo}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.RedoTooltip}"
+                IsEnabled="{Binding CanRedo}"
+                Command="{Binding RedoCommand}">
+          <Path Data="{DynamicResource IconRedo}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+      </StackPanel>
+
+      <!-- Centered Tool Strip -->
+      <StackPanel Grid.Column="1"
+                  Orientation="Horizontal"
+                  Spacing="6"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.SelectToolTooltip}"
+                      IsChecked="{Binding IsSelectTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.Select}">
+          <Path Data="{DynamicResource IconSelectCursor}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="14"
+                Height="14"
+                Stretch="Uniform" />
+        </ToggleButton>
+
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.EditTextTooltip}"
+                      IsChecked="{Binding IsEditTextTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.EditText}">
+          <Path Data="{DynamicResource IconEditTextT}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                StrokeThickness="1.8"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="14"
+                Height="14"
+                Stretch="Uniform" />
+        </ToggleButton>
+
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.AddImageTooltip}"
+                      IsChecked="{Binding IsAddImageTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.AddImage}">
+          <Path Data="{DynamicResource IconAddImage}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </ToggleButton>
+
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.HighlightTooltip}"
+                      IsChecked="{Binding IsHighlightTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.Highlight}">
+          <Path Data="{DynamicResource IconHighlight}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </ToggleButton>
+
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.CommentTooltip}"
+                      IsChecked="{Binding IsCommentTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.Comment}">
+          <Path Data="{DynamicResource IconComment}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </ToggleButton>
+
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.RedactTooltip}"
+                      IsChecked="{Binding IsRedactTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.Redact}">
+          <Path Data="{DynamicResource IconRedact}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </ToggleButton>
+
+        <ToggleButton Classes="tool-strip"
+                      ToolTip.Tip="{Binding Loc.OcrTooltip}"
+                      IsChecked="{Binding IsOcrTool, Mode=OneWay}"
+                      Command="{Binding SelectToolCommand}"
+                      CommandParameter="{x:Static models:EditorTool.Ocr}">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="OCR"
+                       FontSize="8.5"
+                       FontWeight="Bold"
+                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                       HorizontalAlignment="Center" />
+          </StackPanel>
+        </ToggleButton>
+
+        <Border Classes="hairline-v" Height="18" Margin="4,0" />
+
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.ZoomOutTooltip}"
+                IsEnabled="{Binding HasActiveDocument}"
+                Command="{Binding ZoomOutCommand}">
+          <Path Data="{DynamicResource IconZoomOut}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+
+        <!-- Zoom Dropdown (clamped & scrollable) -->
+        <ComboBox x:Name="ZoomPresetCombo"
+                  Classes="inspector-combo"
+                  Width="94"
+                  Height="26"
+                  IsEnabled="{Binding HasActiveDocument}"
+                  ItemsSource="{Binding ZoomPresets}"
+                  PlaceholderText="{Binding ZoomPercentText}"
+                  SelectionChanged="OnZoomPresetSelectionChanged" />
+
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.ZoomInTooltip}"
+                IsEnabled="{Binding HasActiveDocument}"
+                Command="{Binding ZoomInCommand}">
+          <Path Data="{DynamicResource IconZoomIn}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.FindTooltip}"
+                IsEnabled="{Binding HasActiveDocument}"
+                Command="{Binding ToggleFindCommand}">
+          <Path Data="{DynamicResource IconSearch}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+      </StackPanel>
+
+      <!-- Right quick notification badge + Settings -->
+      <StackPanel Grid.Column="2"
+                  Orientation="Horizontal"
+                  Spacing="8"
+                  Margin="0,0,12,0"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Center">
+        <TextBlock Text="{Binding StatusNotification}"
+                   FontSize="11"
+                   Foreground="{DynamicResource TextMutedBrush}"
+                   MaxWidth="240"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" />
+        <Button Classes="toolbar-icon"
+                ToolTip.Tip="{Binding Loc.SettingsTooltip}"
+                Command="{Binding ToggleSettingsCommand}">
+          <Path Data="{DynamicResource IconSettings}"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Width="15"
+                Height="15"
+                Stretch="Uniform" />
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <Border Grid.Row="3" Classes="hairline-h" />
+
+    <!-- 3. Main 3-Pane Workspace -->
+    <Grid Grid.Row="4" ColumnDefinitions="185,1,*,1,280">
+
+      <!-- Left Sidebar: Pages / Outline -->
+      <Grid Grid.Column="0"
+            Background="{DynamicResource PanelBgBrush}"
+            RowDefinitions="Auto,1,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,*">
+          <RadioButton Grid.Column="0"
+                       Classes="sidebar-tab"
+                       GroupName="SidebarMode"
+                       Content="{Binding Loc.PagesTab}"
+                       IsChecked="{Binding IsPagesSidebarSelected, Mode=TwoWay}" />
+          <RadioButton Grid.Column="1"
+                       Classes="sidebar-tab"
+                       GroupName="SidebarMode"
+                       Content="{Binding Loc.OutlineTab}"
+                       IsChecked="{Binding IsOutlineSidebarSelected, Mode=TwoWay}" />
+        </Grid>
+
+        <Border Grid.Row="1" Classes="hairline-h" />
+
+        <!-- Virtualized Page Thumbnails + Page Organizer Strip -->
+        <Grid Grid.Row="2"
+              RowDefinitions="Auto,*"
+              IsVisible="{Binding IsPagesSidebarSelected}">
+          <Border Grid.Row="0"
+                  Padding="6,5"
+                  BorderBrush="{DynamicResource BorderHairlineBrush}"
+                  BorderThickness="0,0,0,1"
+                  IsVisible="{Binding HasActiveDocument}">
+            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
+              <Button Classes="toolbar-icon"
+                      Height="24"
+                      ToolTip.Tip="{Binding Loc.MovePageUp}"
+                      Command="{Binding MovePageUpCommand}">
+                <TextBlock Text="↑" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+              <Button Classes="toolbar-icon"
+                      Height="24"
+                      ToolTip.Tip="{Binding Loc.MovePageDown}"
+                      Command="{Binding MovePageDownCommand}">
+                <TextBlock Text="↓" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+              <Button Classes="toolbar-icon"
+                      Height="24"
+                      ToolTip.Tip="{Binding Loc.InsertBlankPage}"
+                      Command="{Binding InsertBlankPageCommand}">
+                <TextBlock Text="+P" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+              <Button Classes="toolbar-icon"
+                      Height="24"
+                      ToolTip.Tip="{Binding Loc.MergePdfMenu}"
+                      Command="{Binding RequestMergePdfCommand}">
+                <TextBlock Text="+PDF" FontSize="9.5" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+              <Button Classes="toolbar-icon"
+                      Height="24"
+                      ToolTip.Tip="{Binding Loc.DeleteCurrentPageTooltip}"
+                      Command="{Binding DeleteCurrentPageCommand}">
+                <TextBlock Text="×" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+            </UniformGrid>
+          </Border>
+
+          <ListBox x:Name="ThumbnailListBox"
+                   Grid.Row="1"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   Padding="0,8"
+                   ItemsSource="{Binding ActiveTab.Pages}"
+                   SelectedItem="{Binding ActiveTab.SelectedThumbnail, Mode=TwoWay}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   ContainerPrepared="OnThumbnailContainerPrepared"
+                   ContainerClearing="OnThumbnailContainerClearing">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="{Binding Loc.MovePageUp}" Command="{Binding MovePageUpCommand}" />
+                <MenuItem Header="{Binding Loc.MovePageDown}" Command="{Binding MovePageDownCommand}" />
+                <Separator />
+                <MenuItem Header="{Binding Loc.InsertBlankPageAfter}" Command="{Binding InsertBlankPageCommand}" />
+                <MenuItem Header="{Binding Loc.MergePdfMenu}" Command="{Binding RequestMergePdfCommand}" />
+                <Separator />
+                <MenuItem Header="{Binding Loc.DeletePageMenu}" Command="{Binding DeleteCurrentPageCommand}" />
+              </ContextMenu>
+            </ListBox.ContextMenu>
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Background" Value="Transparent" />
+              <Setter Property="Padding" Value="0,6" />
+              <Setter Property="HorizontalContentAlignment" Value="Center" />
+              <Setter Property="Cursor" Value="Hand" />
+            </Style>
+            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+              <Setter Property="Background" Value="Transparent" />
+            </Style>
+            <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+              <Setter Property="Background" Value="Transparent" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:PageThumbnailViewModel">
+              <StackPanel Spacing="5" HorizontalAlignment="Center">
+                <Border Width="{Binding DisplayWidth}"
+                        Height="{Binding DisplayHeight}"
+                        CornerRadius="2"
+                        ClipToBounds="True"
+                        Background="#FFFFFF"
+                        BorderThickness="2"
+                        BorderBrush="{DynamicResource BorderHairlineBrush}">
+                  <Border.Styles>
+                    <Style Selector="Border[Tag=True]">
+                      <Setter Property="BorderBrush" Value="{DynamicResource AccentBlueBrush}" />
+                    </Style>
+                  </Border.Styles>
+                  <Border.Tag>
+                    <Binding Path="IsSelected" />
+                  </Border.Tag>
+                  <Grid>
+                    <Image Source="{Binding ThumbnailBitmap}"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapInterpolationMode="HighQuality" />
+                  </Grid>
+                </Border>
+                <TextBlock Text="{Binding PageNumber}"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           HorizontalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        </Grid>
+
+        <!-- Document Outline Tree -->
+        <Grid Grid.Row="2" IsVisible="{Binding IsOutlineSidebarSelected}">
+          <TreeView ItemsSource="{Binding ActiveTab.Outlines}"
+                    SelectedItem="{Binding ActiveTab.SelectedOutlineItem, Mode=TwoWay}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="6"
+                    IsVisible="{Binding ActiveTab.HasOutlines, FallbackValue=False}">
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate ItemsSource="{Binding Children}">
+                <TextBlock Text="{Binding Title}"
+                           FontSize="11.5"
+                           TextTrimming="CharacterEllipsis"
+                           Padding="2,3" />
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+
+          <TextBlock Text="{Binding Loc.NoOutlinesText}"
+                     Classes="muted"
+                     FontSize="11"
+                     TextWrapping="Wrap"
+                     TextAlignment="Center"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     Margin="16"
+                     IsVisible="{Binding !ActiveTab.HasOutlines, FallbackValue=True}" />
+        </Grid>
+      </Grid>
+
+      <Border Grid.Column="1" Classes="hairline-v" />
+
+      <!-- Center Interactive Document Canvas -->
+      <Grid Grid.Column="2" Background="{DynamicResource AppCanvasBgBrush}">
+        <controls:PdfViewportControl x:Name="PdfViewport"
+                                     DocumentTab="{Binding ActiveTab}"
+                                     ActiveTool="{Binding ActiveTool}"
+                                     EditingBlock="{Binding EditingBlock}"
+                                     IsVisible="{Binding HasActiveDocument}" />
+
+        <!-- Live Direct In-Place Text Editor Overlay (transparent over masked PDF page) -->
+        <Canvas x:Name="InlineEditorLayer"
+                IsVisible="{Binding IsEditingInline}"
+                ClipToBounds="True">
+          <TextBox x:Name="InlineTextEditor"
+                   AcceptsReturn="True"
+                   TextWrapping="{Binding InlineTextWrapping}"
+                   Text="{Binding InlineEditText, Mode=TwoWay}"
+                   FontFamily="{Binding InlineFontFamily}"
+                   FontSize="{Binding InlineFontSizePx}"
+                   FontWeight="{Binding InlineFontWeight}"
+                   FontStyle="{Binding InlineFontStyle}"
+                   LineHeight="{Binding InlineLineHeightPx}"
+                   Foreground="{Binding SelectedTextColorBrush}"
+                   TextAlignment="{Binding InlineTextAlignment}"
+                   Background="Transparent"
+                   CaretBrush="#4287F5"
+                   SelectionBrush="#4D4287F5"
+                   BorderBrush="Transparent"
+                   BorderThickness="0"
+                   CornerRadius="0"
+                   MinWidth="0"
+                   MinHeight="0"
+                   Padding="0"
+                   Margin="0"
+                   ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   KeyDown="OnInlineEditorKeyDown">
+            <TextBox.Template>
+              <ControlTemplate TargetType="TextBox">
+                <ScrollViewer x:Name="PART_ScrollViewer"
+                              HorizontalScrollBarVisibility="{TemplateBinding (ScrollViewer.HorizontalScrollBarVisibility)}"
+                              VerticalScrollBarVisibility="{TemplateBinding (ScrollViewer.VerticalScrollBarVisibility)}"
+                              Padding="0"
+                              Margin="0"
+                              Background="Transparent">
+                  <TextPresenter x:Name="PART_TextPresenter"
+                                 Text="{TemplateBinding Text, Mode=TwoWay}"
+                                 CaretIndex="{TemplateBinding CaretIndex}"
+                                 SelectionStart="{TemplateBinding SelectionStart}"
+                                 SelectionEnd="{TemplateBinding SelectionEnd}"
+                                 TextAlignment="{TemplateBinding TextAlignment}"
+                                 TextWrapping="{TemplateBinding TextWrapping}"
+                                 LineHeight="{TemplateBinding LineHeight}"
+                                 CaretBrush="{TemplateBinding CaretBrush}"
+                                 SelectionBrush="{TemplateBinding SelectionBrush}"
+                                 SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+                                 Margin="0" />
+                </ScrollViewer>
+              </ControlTemplate>
+            </TextBox.Template>
+          </TextBox>
+        </Canvas>
+
+        <!-- Floating Sticky-Note Comment Popover -->
+        <Canvas IsVisible="{Binding IsCommentEditorOpen}"
+                ClipToBounds="True">
+          <Border Canvas.Left="{Binding CommentPopupX}"
+                  Canvas.Top="{Binding CommentPopupY}"
+                  Width="240"
+                  Padding="10"
+                  CornerRadius="6"
+                  Background="{DynamicResource PanelBgBrush}"
+                  BorderBrush="#D99D39"
+                  BorderThickness="1">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding Loc.CommentNoteTitle}"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Classes="tab-close"
+                        ToolTip.Tip="{Binding Loc.CloseWindowTooltip}"
+                        Command="{Binding CancelCommentCommand}">
+                  <Path Data="{DynamicResource IconClose}"
+                        Stroke="{DynamicResource TextMutedBrush}"
+                        StrokeThickness="1.4"
+                        Width="9"
+                        Height="9"
+                        Stretch="Uniform" />
+                </Button>
+              </Grid>
+              <TextBox x:Name="CommentEditorBox"
+                       Classes="inspector-input"
+                       AcceptsReturn="True"
+                       TextWrapping="Wrap"
+                       MinHeight="68"
+                       MaxHeight="140"
+                       Watermark="{Binding Loc.CommentWatermark}"
+                       Text="{Binding CommentDraftText, Mode=TwoWay}" />
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <Button Grid.Column="0"
+                        Classes="inspector-action"
+                        Width="66"
+                        Height="26"
+                        Content="{Binding Loc.DeleteButton}"
+                        IsVisible="{Binding IsEditingExistingComment}"
+                        Command="{Binding DeleteCommentCommand}" />
+                <Button Grid.Column="2"
+                        Classes="inspector-action"
+                        Width="70"
+                        Height="26"
+                        Margin="0,0,6,0"
+                        Content="{Binding Loc.CancelButton}"
+                        Command="{Binding CancelCommentCommand}" />
+                <Button Grid.Column="3"
+                        MinWidth="66"
+                        Height="26"
+                        Padding="10,0"
+                        CornerRadius="4"
+                        Background="{DynamicResource AccentBlueBrush}"
+                        Foreground="#FFFFFF"
+                        FontSize="11.5"
+                        FontWeight="SemiBold"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="{Binding Loc.SaveButton}"
+                        Command="{Binding SaveCommentCommand}" />
+              </Grid>
+            </StackPanel>
+          </Border>
+        </Canvas>
+
+        <!-- Empty State / Dropzone -->
+        <Border IsVisible="{Binding !HasActiveDocument}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Width="440"
+                Padding="34,30"
+                CornerRadius="8"
+                Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderHairlineBrush}"
+                BorderThickness="1">
+          <StackPanel Spacing="16" HorizontalAlignment="Stretch">
+            <Border Width="48"
+                    Height="48"
+                    CornerRadius="10"
+                    Background="{DynamicResource CardHeaderBgBrush}"
+                    BorderBrush="{DynamicResource BorderHairlineBrush}"
+                    BorderThickness="1"
+                    HorizontalAlignment="Center">
+              <Path Data="{DynamicResource IconDocument}"
+                    Stroke="{DynamicResource AccentBlueBrush}"
+                    StrokeThickness="1.6"
+                    Width="22"
+                    Height="22"
+                    Stretch="Uniform"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center" />
+            </Border>
+
+            <StackPanel Spacing="6" HorizontalAlignment="Stretch">
+              <TextBlock Text="{Binding Loc.DropzoneTitle}"
+                         FontSize="16"
+                         FontWeight="SemiBold"
+                         HorizontalAlignment="Center"
+                         TextAlignment="Center" />
+              <TextBlock Text="{Binding Loc.DropzoneSubtitle}"
+                         Classes="muted"
+                         FontSize="12"
+                         MaxWidth="340"
+                         TextWrapping="Wrap"
+                         HorizontalAlignment="Center"
+                         TextAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,4,0,0">
+              <Button Content="{Binding Loc.OpenPdfButton}"
+                      Height="34"
+                      MinWidth="144"
+                      Padding="18,0"
+                      CornerRadius="4"
+                      Background="{DynamicResource AccentBlueBrush}"
+                      Foreground="#FFFFFF"
+                      FontWeight="SemiBold"
+                      HorizontalContentAlignment="Center"
+                      VerticalContentAlignment="Center"
+                      Cursor="Hand"
+                      Command="{Binding RequestOpenFileCommand}" />
+              <Button Content="{Binding Loc.OpenSampleButton}"
+                      Classes="inspector-action"
+                      MinWidth="164"
+                      Padding="16,0"
+                      Height="34"
+                      HorizontalAlignment="Center"
+                      HorizontalContentAlignment="Center"
+                      VerticalContentAlignment="Center"
+                      Command="{Binding OpenSampleDocumentCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Inline Quick Find Overlay (Ctrl+F) -->
+        <Border IsVisible="{Binding IsFindBarOpen}"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,12,16,0"
+                Padding="8"
+                CornerRadius="4"
+                Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderHairlineBrush}"
+                BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBox x:Name="QuickFindBox"
+                     Classes="inspector-input"
+                     Width="180"
+                     Watermark="{Binding Loc.FindWatermark}"
+                     Text="{Binding FindReplaceQuery, Mode=TwoWay}"
+                     KeyDown="OnQuickFindKeyDown" />
+            <Button Classes="inspector-action"
+                    MinWidth="54"
+                    Padding="10,0"
+                    Height="26"
+                    Content="{Binding Loc.NextButton}"
+                    Command="{Binding FindNextCommand}" />
+            <Button Classes="tab-close"
+                    ToolTip.Tip="{Binding Loc.CloseFindTooltip}"
+                    Command="{Binding ToggleFindCommand}">
+              <Path Data="{DynamicResource IconClose}"
+                    Stroke="{DynamicResource TextMutedBrush}"
+                    StrokeThickness="1.4"
+                    Width="9"
+                    Height="9"
+                    Stretch="Uniform" />
+            </Button>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Grid.Column="3" Classes="hairline-v" />
+
+      <!-- Right Properties Inspector (280px) -->
+      <Border Grid.Column="4" Background="{DynamicResource PanelBgBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="10" Spacing="10">
+
+            <!-- TEXT & FONT Card -->
+            <themeControls:CollapsibleCard Header="{Binding Loc.TextFontHeader}" IsExpanded="True">
+              <StackPanel Spacing="9">
+                <!-- Searchable & Scrollable Font Picker (clamped inside window bounds) -->
+                <Grid>
+                  <ToggleButton x:Name="FontPickerButton"
+                                HorizontalAlignment="Stretch"
+                                Height="26"
+                                Padding="8,0"
+                                Background="{DynamicResource InputBgBrush}"
+                                BorderBrush="{DynamicResource BorderHairlineBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                HorizontalContentAlignment="Stretch"
+                                Cursor="Hand">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0"
+                                 Text="{Binding SelectedFontFamily}"
+                                 FontSize="11.5"
+                                 VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis" />
+                      <Path Grid.Column="1"
+                            Data="{DynamicResource IconChevronDown}"
+                            Stroke="{DynamicResource TextMutedBrush}"
+                            StrokeThickness="1.4"
+                            Width="10"
+                            Height="10"
+                            Stretch="Uniform"
+                            VerticalAlignment="Center" />
+                    </Grid>
+                  </ToggleButton>
+
+                  <Popup IsOpen="{Binding IsChecked, ElementName=FontPickerButton, Mode=TwoWay}"
+                         PlacementTarget="{Binding #FontPickerButton}"
+                         Placement="BottomEdgeAlignedLeft"
+                         IsLightDismissEnabled="True"
+                         WindowManagerAddShadowHint="False">
+                    <Border Width="238"
+                            MaxHeight="240"
+                            Padding="6"
+                            CornerRadius="4"
+                            Background="{DynamicResource PanelBgBrush}"
+                            BorderBrush="{DynamicResource BorderHairlineBrush}"
+                            BorderThickness="1">
+                      <Grid RowDefinitions="Auto,6,*">
+                        <TextBox Grid.Row="0"
+                                 Classes="inspector-input"
+                                 Watermark="{Binding Loc.SearchFontsWatermark}"
+                                 Text="{Binding FontSearchFilter, Mode=TwoWay}" />
+                        <ListBox Grid.Row="2"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 MaxHeight="190"
+                                 ItemsSource="{Binding FilteredFontFamilies}"
+                                 SelectedItem="{Binding SelectedFontFamily, Mode=TwoWay}"
+                                 SelectionChanged="OnFontFamilySelectionChanged">
+                          <ListBox.ItemTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="{Binding}" FontSize="11.5" Padding="4,3" />
+                            </DataTemplate>
+                          </ListBox.ItemTemplate>
+                        </ListBox>
+                      </Grid>
+                    </Border>
+                  </Popup>
+                </Grid>
+
+                <!-- Weight + Font Size -->
+                <Grid ColumnDefinitions="*,8,78">
+                  <ComboBox Grid.Column="0"
+                            Classes="inspector-combo"
+                            ItemsSource="{Binding FontWeights}"
+                            SelectedItem="{Binding SelectedFontWeight, Mode=TwoWay}" />
+                  <TextBox Grid.Column="2"
+                           Classes="inspector-input"
+                           Text="{Binding SelectedFontSizeText, Mode=TwoWay}" />
+                </Grid>
+
+                <!-- Color Swatch + B/I/U + Alignment -->
+                <Grid ColumnDefinitions="28,8,Auto,*,Auto">
+                  <Border Grid.Column="0"
+                          Width="26"
+                          Height="26"
+                          CornerRadius="4"
+                          Background="{Binding SelectedTextColorBrush}"
+                          BorderBrush="{DynamicResource BorderHairlineBrush}"
+                          BorderThickness="1"
+                          ToolTip.Tip="{Binding Loc.TextColorTooltip}" />
+
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+                    <ToggleButton Classes="segmented"
+                                  IsChecked="{Binding IsBoldActive, Mode=TwoWay}"
+                                  ToolTip.Tip="{Binding Loc.BoldTooltip}">
+                      <TextBlock Text="B" FontWeight="Bold" FontSize="11.5" />
+                    </ToggleButton>
+                    <ToggleButton Classes="segmented"
+                                  IsChecked="{Binding IsItalicActive, Mode=TwoWay}"
+                                  ToolTip.Tip="{Binding Loc.ItalicTooltip}">
+                      <TextBlock Text="I" FontStyle="Italic" FontFamily="Georgia" FontSize="11.5" />
+                    </ToggleButton>
+                    <ToggleButton Classes="segmented"
+                                  IsChecked="{Binding IsUnderlineActive, Mode=TwoWay}"
+                                  ToolTip.Tip="{Binding Loc.UnderlineTooltip}">
+                      <TextBlock Text="U" TextDecorations="Underline" FontSize="11.5" />
+                    </ToggleButton>
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="2">
+                    <ToggleButton Classes="segmented"
+                                  IsChecked="{Binding IsAlignLeft, Mode=OneWay}"
+                                  Command="{Binding SetAlignmentCommand}"
+                                  CommandParameter="{x:Static models:TextAlignMode.Left}"
+                                  ToolTip.Tip="{Binding Loc.AlignLeftTooltip}">
+                      <Path Data="{DynamicResource IconAlignLeft}"
+                            Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                            StrokeThickness="1.3"
+                            Width="12"
+                            Height="12"
+                            Stretch="Uniform" />
+                    </ToggleButton>
+                    <ToggleButton Classes="segmented"
+                                  IsChecked="{Binding IsAlignCenter, Mode=OneWay}"
+                                  Command="{Binding SetAlignmentCommand}"
+                                  CommandParameter="{x:Static models:TextAlignMode.Center}"
+                                  ToolTip.Tip="{Binding Loc.AlignCenterTooltip}">
+                      <Path Data="{DynamicResource IconAlignCenter}"
+                            Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                            StrokeThickness="1.3"
+                            Width="12"
+                            Height="12"
+                            Stretch="Uniform" />
+                    </ToggleButton>
+                    <ToggleButton Classes="segmented"
+                                  IsChecked="{Binding IsAlignRight, Mode=OneWay}"
+                                  Command="{Binding SetAlignmentCommand}"
+                                  CommandParameter="{x:Static models:TextAlignMode.Right}"
+                                  ToolTip.Tip="{Binding Loc.AlignRightTooltip}">
+                      <Path Data="{DynamicResource IconAlignRight}"
+                            Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                            StrokeThickness="1.3"
+                            Width="12"
+                            Height="12"
+                            Stretch="Uniform" />
+                    </ToggleButton>
+                  </StackPanel>
+                </Grid>
+
+                <!-- Letter & Line Spacing -->
+                <Grid ColumnDefinitions="*,10,*">
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="{Binding Loc.LetterSpacingLabel}" Classes="inspector-label" />
+                    <TextBox Classes="inspector-input" Text="{Binding LetterSpacingText, Mode=TwoWay}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Text="{Binding Loc.LineSpacingLabel}" Classes="inspector-label" />
+                    <TextBox Classes="inspector-input" Text="{Binding LineSpacingText, Mode=TwoWay}" />
+                  </StackPanel>
+                </Grid>
+
+                <!-- Font Embed / Fallback Status Pill -->
+                <Border Background="{DynamicResource CardHeaderBgBrush}"
+                        BorderBrush="{DynamicResource BorderHairlineBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,5">
+                  <TextBlock Text="{Binding FontStatusBadgeText}"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextMutedBrush}"
+                             HorizontalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" />
+                </Border>
+              </StackPanel>
+            </themeControls:CollapsibleCard>
+
+            <!-- PARAGRAPH & REFLOW Card -->
+            <themeControls:CollapsibleCard Header="{Binding Loc.ParagraphReflowHeader}" IsExpanded="True">
+              <StackPanel Spacing="9">
+                <Grid ColumnDefinitions="18,*,10,18,*" RowDefinitions="Auto,6,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0" Text="X" Classes="inspector-label" />
+                  <TextBox Grid.Row="0" Grid.Column="1" Classes="inspector-input" Text="{Binding BlockXText, Mode=TwoWay}" />
+                  <TextBlock Grid.Row="0" Grid.Column="3" Text="Y" Classes="inspector-label" />
+                  <TextBox Grid.Row="0" Grid.Column="4" Classes="inspector-input" Text="{Binding BlockYText, Mode=TwoWay}" />
+
+                  <TextBlock Grid.Row="2" Grid.Column="0" Text="W" Classes="inspector-label" />
+                  <TextBox Grid.Row="2" Grid.Column="1" Classes="inspector-input" Text="{Binding BlockWText, Mode=TwoWay}" />
+                  <TextBlock Grid.Row="2" Grid.Column="3" Text="H" Classes="inspector-label" />
+                  <TextBox Grid.Row="2" Grid.Column="4" Classes="inspector-input" Text="{Binding BlockHText, Mode=TwoWay}" />
+                </Grid>
+
+                <Grid ColumnDefinitions="Auto,*">
+                  <ToggleSwitch Grid.Column="0"
+                                Classes="pill-switch"
+                                IsChecked="{Binding AutoReflowParagraph, Mode=TwoWay}" />
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding Loc.AutoReflowLabel}"
+                             FontSize="11.5"
+                             Margin="8,0,0,0"
+                             VerticalAlignment="Center" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,6,Auto">
+                  <TextBox Grid.Column="0"
+                           Classes="inspector-input"
+                           Watermark="{Binding Loc.FindReplaceWatermark}"
+                           Text="{Binding FindReplaceQuery, Mode=TwoWay}" />
+                  <ToggleButton Grid.Column="2"
+                                Classes="segmented"
+                                Width="28"
+                                ToolTip.Tip="{Binding Loc.MatchCaseTooltip}"
+                                IsChecked="{Binding IsCaseSensitiveSearch, Mode=TwoWay}">
+                    <TextBlock Text="Aa" FontSize="11" FontWeight="SemiBold" />
+                  </ToggleButton>
+                </Grid>
+              </StackPanel>
+            </themeControls:CollapsibleCard>
+
+            <!-- DOCUMENT ACTIONS Card -->
+            <themeControls:CollapsibleCard Header="{Binding Loc.DocumentActionsHeader}" IsExpanded="True">
+              <StackPanel Spacing="7">
+                <Button Classes="inspector-action"
+                        Content="{Binding Loc.DetectTextBlocksButton}"
+                        Command="{Binding TriggerDocumentActionCommand}"
+                        CommandParameter="Detect Text Blocks" />
+                <Button Classes="inspector-action"
+                        Content="{Binding Loc.RunOcrButton}"
+                        Command="{Binding TriggerDocumentActionCommand}"
+                        CommandParameter="Run OCR" />
+                <Button Classes="inspector-action"
+                        Content="{Binding Loc.RewriteBlockButton}"
+                        Command="{Binding TriggerDocumentActionCommand}"
+                        CommandParameter="Rewrite / Translate Block" />
+              </StackPanel>
+            </themeControls:CollapsibleCard>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="5" Classes="hairline-h" />
+
+    <!-- 4. Bottom Status Bar (24px) -->
+    <Grid Grid.Row="6"
+          Background="{DynamicResource TitleBarBgBrush}"
+          ColumnDefinitions="*,Auto">
+      <TextBlock Grid.Column="0"
+                 Text="{Binding StatusBarText}"
+                 FontSize="11"
+                 Foreground="{DynamicResource TextMutedBrush}"
+                 Margin="12,0"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" />
+
+      <StackPanel Grid.Column="1"
+                  Orientation="Horizontal"
+                  Spacing="8"
+                  Margin="0,0,12,0"
+                  VerticalAlignment="Center">
+        <Slider Classes="status-zoom"
+                Width="112"
+                Minimum="25"
+                Maximum="400"
+                IsEnabled="{Binding HasActiveDocument}"
+                Value="{Binding ZoomPercent, Mode=TwoWay}" />
+        <TextBlock Text="{Binding ZoomPercentText}"
+                   FontSize="11"
+                   Width="36"
+                   TextAlignment="Right"
+                   Foreground="{DynamicResource TextMutedBrush}"
+                   VerticalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+      </Grid>
+
+      <!-- Settings Modal Overlay -->
+      <Grid IsVisible="{Binding IsSettingsOpen}"
+            Background="#8C080B12"
+            PointerPressed="OnSettingsBackdropPressed">
+        <Border Width="430"
+                Padding="24"
+                CornerRadius="8"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource PanelBgBrush}"
+                BorderBrush="{DynamicResource BorderHairlineBrush}"
+                BorderThickness="1"
+                PointerPressed="OnSettingsCardPointerPressed">
+          <StackPanel Spacing="18">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Data="{DynamicResource IconSettings}"
+                      Stroke="{DynamicResource AccentBlueBrush}"
+                      StrokeThickness="1.6"
+                      Width="16"
+                      Height="16"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Loc.SettingsTitle}"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Classes="tab-close"
+                      ToolTip.Tip="{Binding Loc.CloseWindowTooltip}"
+                      Command="{Binding CloseSettingsCommand}">
+                <Path Data="{DynamicResource IconClose}"
+                      Stroke="{DynamicResource TextMutedBrush}"
+                      StrokeThickness="1.4"
+                      Width="10"
+                      Height="10"
+                      Stretch="Uniform" />
+              </Button>
+            </Grid>
+
+            <Border Classes="hairline-h" />
+
+            <!-- Language Picker -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="{Binding Loc.LanguageLabel}"
+                         FontSize="12.5"
+                         FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Loc.LanguageDescription}"
+                         Classes="muted"
+                         FontSize="11.5"
+                         TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="*,10,*" Margin="0,4,0,0">
+                <ToggleButton Grid.Column="0"
+                              Classes="segmented"
+                              Height="34"
+                              HorizontalAlignment="Stretch"
+                              IsChecked="{Binding Loc.IsEnglish, Mode=OneWay}"
+                              Command="{Binding SetLanguageCommand}"
+                              CommandParameter="en">
+                  <TextBlock Text="English" FontSize="12" FontWeight="Medium" />
+                </ToggleButton>
+                <ToggleButton Grid.Column="2"
+                              Classes="segmented"
+                              Height="34"
+                              HorizontalAlignment="Stretch"
+                              IsChecked="{Binding Loc.IsGerman, Mode=OneWay}"
+                              Command="{Binding SetLanguageCommand}"
+                              CommandParameter="de">
+                  <TextBlock Text="Deutsch" FontSize="12" FontWeight="Medium" />
+                </ToggleButton>
+              </Grid>
+            </StackPanel>
+
+            <!-- Shortcuts Reference -->
+            <Border Background="{DynamicResource CardHeaderBgBrush}"
+                    BorderBrush="{DynamicResource BorderHairlineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="12,10">
+              <StackPanel Spacing="5">
+                <TextBlock Text="{Binding Loc.ShortcutsHeading}"
+                           FontSize="11"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Loc.ShortcutsBody}"
+                           Classes="muted"
+                           FontSize="11"
+                           LineHeight="17"
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Button Content="{Binding Loc.CloseButton}"
+                    Classes="inspector-action"
+                    Width="108"
+                    Height="32"
+                    HorizontalAlignment="Right"
+                    Command="{Binding CloseSettingsCommand}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

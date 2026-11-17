@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+  <!-- Corner Radii -->
+  <CornerRadius x:Key="RadiusXs">3</CornerRadius>
+  <CornerRadius x:Key="RadiusCard">4</CornerRadius>
+  <CornerRadius x:Key="RadiusControl">4</CornerRadius>
+  <CornerRadius x:Key="RadiusPill">999</CornerRadius>
+
+  <!-- Border Thicknesses -->
+  <Thickness x:Key="HairlineThickness">1</Thickness>
+  <Thickness x:Key="HairlineBottomThickness">0,0,0,1</Thickness>
+  <Thickness x:Key="HairlineTopThickness">0,1,0,0</Thickness>
+  <Thickness x:Key="HairlineLeftThickness">1,0,0,0</Thickness>
+  <Thickness x:Key="HairlineRightThickness">0,0,1,0</Thickness>
+
+  <!-- Font Sizes -->
+  <sys:Double x:Key="FontSizeMicro">10.5</sys:Double>
+  <sys:Double x:Key="FontSizeCaption">11</sys:Double>
+  <sys:Double x:Key="FontSizeBody">12</sys:Double>
+  <sys:Double x:Key="FontSizeSubheader">12.5</sys:Double>
+  <sys:Double x:Key="FontSizeTitle">13.5</sys:Double>
+
+  <!-- Standard Dimensions -->
+  <sys:Double x:Key="LeftSidebarWidth">185</sys:Double>
+  <sys:Double x:Key="RightInspectorWidth">280</sys:Double>
+  <sys:Double x:Key="StatusBarHeight">24</sys:Double>
+  <sys:Double x:Key="TitleTabBarHeight">36</sys:Double>
+  <sys:Double x:Key="ActionToolbarHeight">40</sys:Double>
+</ResourceDictionary>

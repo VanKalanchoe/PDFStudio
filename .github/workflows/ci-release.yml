@@ -17,10 +17,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 9.0.x
 
@@ -50,7 +50,7 @@ jobs:
           Compress-Archive -Path dist/PdfStudio-win-x64/* -DestinationPath dist/archives/PdfStudio-win-x64.zip -Force
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PdfStudio-win-x64
           path: dist/archives/PdfStudio-win-x64.zip
@@ -60,10 +60,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 9.0.x
 
@@ -84,7 +84,12 @@ jobs:
           cp -R dist/publish-macos-x64/* "$APP_DIR/Contents/MacOS/"
           chmod +x "$APP_DIR/Contents/MacOS/PdfStudio.App"
 
-          cat > "$APP_DIR/Contents/Info.plist" << 'EOF'
+          BUNDLE_VER="${GITHUB_REF_NAME#v}"
+          if [ -z "$BUNDLE_VER" ] || [ "$BUNDLE_VER" = "main" ]; then
+            BUNDLE_VER="0.0.1"
+          fi
+
+          cat > "$APP_DIR/Contents/Info.plist" << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -96,9 +101,9 @@ jobs:
             <key>CFBundleIdentifier</key>
             <string>com.pdfstudio.app</string>
             <key>CFBundleVersion</key>
-            <string>1.0.0</string>
+            <string>${BUNDLE_VER}</string>
             <key>CFBundleShortVersionString</key>
-            <string>1.0.0</string>
+            <string>${BUNDLE_VER}</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
             <key>CFBundleExecutable</key>
@@ -114,7 +119,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" dist/archives/PdfStudio-macos-x64.zip
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PdfStudio-macos-x64
           path: dist/archives/PdfStudio-macos-x64.zip
@@ -126,13 +131,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
+          prerelease: ${{ startsWith(github.ref, 'refs/tags/v0.') || contains(github.ref, '-') }}
           generate_release_notes: true
           files: |
             artifacts/PdfStudio-win-x64/PdfStudio-win-x64.zip

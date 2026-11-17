@@ -1,0 +1,139 @@
+name: CI & Multi-Platform Release
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Test & Package (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore src/PdfStudio.App/PdfStudio.App.csproj
+
+      - name: Restore test dependencies
+        run: dotnet restore tests/PdfStudio.Core.Tests/PdfStudio.Core.Tests.csproj
+
+      - name: Run Core unit & integration tests
+        run: dotnet test tests/PdfStudio.Core.Tests/PdfStudio.Core.Tests.csproj -c Release --no-restore --verbosity normal
+
+      - name: Publish Windows x64 portable build
+        run: >
+          dotnet publish src/PdfStudio.App/PdfStudio.App.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o dist/PdfStudio-win-x64
+
+      - name: Zip Windows x64 package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/archives | Out-Null
+          Compress-Archive -Path dist/PdfStudio-win-x64/* -DestinationPath dist/archives/PdfStudio-win-x64.zip -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PdfStudio-win-x64
+          path: dist/archives/PdfStudio-win-x64.zip
+
+  macos:
+    name: Build & Package (macOS x64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Publish macOS x64 self-contained build
+        run: >
+          dotnet publish src/PdfStudio.App/PdfStudio.App.csproj
+          -c Release
+          -r osx-x64
+          --self-contained true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o dist/publish-macos-x64
+
+      - name: Assemble PdfStudio.app bundle
+        run: |
+          APP_DIR="dist/PdfStudio.app"
+          mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources" dist/archives
+          cp -R dist/publish-macos-x64/* "$APP_DIR/Contents/MacOS/"
+          chmod +x "$APP_DIR/Contents/MacOS/PdfStudio.App"
+
+          cat > "$APP_DIR/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>PdfStudio</string>
+            <key>CFBundleDisplayName</key>
+            <string>PdfStudio</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.pdfstudio.app</string>
+            <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleExecutable</key>
+            <string>PdfStudio.App</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>12.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" dist/archives/PdfStudio-macos-x64.zip
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PdfStudio-macos-x64
+          path: dist/archives/PdfStudio-macos-x64.zip
+
+  release:
+    name: Create GitHub Release
+    needs: [ windows, macos ]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/PdfStudio-win-x64/PdfStudio-win-x64.zip
+            artifacts/PdfStudio-macos-x64/PdfStudio-macos-x64.zip

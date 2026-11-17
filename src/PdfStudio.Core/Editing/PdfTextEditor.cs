@@ -84,6 +84,14 @@ public sealed class PdfTextEditor
                     }
                 }
 
+                var existingFontCandidates = CollectMatchingPageFonts(
+                    page,
+                    pageHeight,
+                    request.OriginalBlock.Bounds,
+                    request.FontFamily,
+                    request.IsBold,
+                    request.IsItalic);
+
                 int insertedCount = 0;
                 double baselineOffsetY = request.TargetBounds.Top - request.OriginalBlock.Bounds.Top;
                 double deltaX = request.TargetBounds.Left - request.OriginalBlock.Bounds.Left;
@@ -133,31 +141,41 @@ public sealed class PdfTextEditor
                             continue;
                         }
 
-                        var pdfFont = IsWinAnsiCompatible(segment.Text)
-                            ? GetOrLoadStandardFont(doc, MapToStandard14Font(request.FontFamily, request.IsBold, request.IsItalic), loadedFonts)
-                            : GetOrLoadPdfFont(doc, segment.Font, loadedFonts);
-                        if (pdfFont is null || pdfFont.__Instance == IntPtr.Zero)
-                        {
-                            continue;
-                        }
+                        var textObj = TryCreateTextObjWithExistingFonts(
+                            doc,
+                            page,
+                            existingFontCandidates,
+                            segment.Text,
+                            fontSize);
 
-                        var textObj = fpdf_edit.FPDFPageObjCreateTextObj(doc, pdfFont, (float)fontSize);
-                        if (textObj is null || textObj.__Instance == IntPtr.Zero)
+                        if (textObj is null)
                         {
-                            continue;
-                        }
+                            var pdfFont = IsExplicitStandard14Request(request.FontFamily) && IsWinAnsiCompatible(segment.Text)
+                                ? GetOrLoadStandardFont(doc, MapToStandard14Font(request.FontFamily, request.IsBold, request.IsItalic), loadedFonts)
+                                : GetOrLoadPdfFont(doc, segment.Font, loadedFonts);
+                            if (pdfFont is null || pdfFont.__Instance == IntPtr.Zero)
+                            {
+                                continue;
+                            }
 
-                        var utf16 = (segment.Text + "\0").ToCharArray();
-                        ushort[] codeUnits = new ushort[utf16.Length];
-                        for (int k = 0; k < utf16.Length; k++)
-                        {
-                            codeUnits[k] = utf16[k];
-                        }
+                            textObj = fpdf_edit.FPDFPageObjCreateTextObj(doc, pdfFont, (float)fontSize);
+                            if (textObj is null || textObj.__Instance == IntPtr.Zero)
+                            {
+                                continue;
+                            }
 
-                        if (fpdf_edit.FPDFTextSetText(textObj, ref codeUnits[0]) == 0)
-                        {
-                            fpdf_edit.FPDFPageObjDestroy(textObj);
-                            continue;
+                            var utf16 = (segment.Text + "\0").ToCharArray();
+                            ushort[] codeUnits = new ushort[utf16.Length];
+                            for (int k = 0; k < utf16.Length; k++)
+                            {
+                                codeUnits[k] = utf16[k];
+                            }
+
+                            if (fpdf_edit.FPDFTextSetText(textObj, ref codeUnits[0]) == 0)
+                            {
+                                fpdf_edit.FPDFPageObjDestroy(textObj);
+                                continue;
+                            }
                         }
 
                         using var matrix = new FS_MATRIX_
@@ -354,6 +372,327 @@ public sealed class PdfTextEditor
         }
 
         return true;
+    }
+
+    private static bool IsExplicitStandard14Request(string family)
+    {
+        string norm = (family ?? string.Empty).Trim().ToLowerInvariant();
+        return norm is "helvetica" or "helvetica-bold" or "helvetica-oblique" or "helvetica-boldoblique"
+            or "times" or "times-roman" or "times-bold" or "times-italic" or "times-bolditalic"
+            or "courier" or "courier-bold" or "courier-oblique" or "courier-boldoblique";
+    }
+
+    private static List<FpdfFontT> CollectMatchingPageFonts(
+        FpdfPageT page,
+        double pageHeight,
+        PdfRect originalBlockBounds,
+        string requestedFamily,
+        bool isBold,
+        bool isItalic)
+    {
+        var matches = new List<FpdfFontT>();
+        var seenHandles = new HashSet<IntPtr>();
+        string targetFamily = NormalizeFamilyKey(requestedFamily);
+
+        var textPage = fpdf_text.FPDFTextLoadPage(page);
+        var charInfos = textPage is not null && textPage.__Instance != IntPtr.Zero
+            ? ReadPageCharFonts(textPage, pageHeight)
+            : new List<(PdfRect Bounds, string FamilyName)>();
+
+        try
+        {
+            void TryAddFont(FpdfFontT? font, PdfRect objBounds, bool isInsideOriginalBlock)
+            {
+                if (font is null || font.__Instance == IntPtr.Zero || !seenHandles.Add(font.__Instance))
+                {
+                    return;
+                }
+
+                if (!StyleMatches(font, isBold, isItalic))
+                {
+                    return;
+                }
+
+                string? detectedFamily = FindCharFontAtBounds(charInfos, objBounds);
+                if (detectedFamily is null && isInsideOriginalBlock)
+                {
+                    detectedFamily = requestedFamily;
+                }
+
+                if (detectedFamily is not null &&
+                    string.Equals(NormalizeFamilyKey(detectedFamily), targetFamily, StringComparison.OrdinalIgnoreCase))
+                {
+                    matches.Add(font);
+                }
+            }
+
+            void CollectFromObject(FpdfPageobjectT obj, int depth)
+            {
+                if (obj is null || obj.__Instance == IntPtr.Zero || depth > 4)
+                {
+                    return;
+                }
+
+                int type = fpdf_edit.FPDFPageObjGetType(obj);
+                if (type == PdfPageLayerHelper.FpdfPageObjForm)
+                {
+                    int childCount = fpdf_edit.FPDFFormObjCountObjects(obj);
+                    for (int c = 0; c < childCount; c++)
+                    {
+                        CollectFromObject(fpdf_edit.FPDFFormObjGetObject(obj, (uint)c), depth + 1);
+                    }
+
+                    return;
+                }
+
+                if (type != PdfPageLayerHelper.FpdfPageObjText)
+                {
+                    return;
+                }
+
+                float l = 0, b = 0, r = 0, t = 0;
+                var objBounds = fpdf_edit.FPDFPageObjGetBounds(obj, ref l, ref b, ref r, ref t) != 0
+                    ? new PdfRect(Math.Min(l, r), Math.Min(pageHeight - t, pageHeight - b), Math.Max(l, r), Math.Max(pageHeight - t, pageHeight - b))
+                    : originalBlockBounds;
+
+                bool insideOrig = originalBlockBounds.Contains(objBounds.CenterX, objBounds.CenterY, padding: 3.0);
+                TryAddFont(fpdf_edit.FPDFTextObjGetFont(obj), objBounds, insideOrig);
+            }
+
+            int count = fpdf_edit.FPDFPageCountObjects(page);
+            for (int i = 0; i < count; i++)
+            {
+                var obj = fpdf_edit.FPDFPageGetObject(page, i);
+                if (obj is not null && obj.__Instance != IntPtr.Zero &&
+                    fpdf_edit.FPDFPageObjGetType(obj) == PdfPageLayerHelper.FpdfPageObjText)
+                {
+                    CollectFromObject(obj, 0);
+                }
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                var obj = fpdf_edit.FPDFPageGetObject(page, i);
+                if (obj is not null && obj.__Instance != IntPtr.Zero &&
+                    fpdf_edit.FPDFPageObjGetType(obj) == PdfPageLayerHelper.FpdfPageObjForm)
+                {
+                    CollectFromObject(obj, 0);
+                }
+            }
+        }
+        finally
+        {
+            if (textPage is not null && textPage.__Instance != IntPtr.Zero)
+            {
+                fpdf_text.FPDFTextClosePage(textPage);
+            }
+        }
+
+        return matches;
+    }
+
+    private static List<(PdfRect Bounds, string FamilyName)> ReadPageCharFonts(FpdfTextpageT textPage, double pageHeight)
+    {
+        var result = new List<(PdfRect Bounds, string FamilyName)>();
+        int charCount = fpdf_text.FPDFTextCountChars(textPage);
+        if (charCount <= 0)
+        {
+            return result;
+        }
+
+        int bufSize = 128;
+        IntPtr buf = System.Runtime.InteropServices.Marshal.AllocHGlobal(bufSize);
+        byte[] managed = new byte[bufSize];
+        try
+        {
+            for (int i = 0; i < charCount; i++)
+            {
+                uint uni = fpdf_text.FPDFTextGetUnicode(textPage, i);
+                if (uni <= 32 || uni > 0xFFFF)
+                {
+                    continue;
+                }
+
+                double l = 0, r = 0, b = 0, t = 0;
+                if (fpdf_text.FPDFTextGetCharBox(textPage, i, ref l, ref r, ref b, ref t) == 0)
+                {
+                    continue;
+                }
+
+                int flags = 0;
+                uint req = fpdf_text.FPDFTextGetFontInfo(textPage, i, buf, (uint)bufSize, ref flags);
+                if (req > (uint)bufSize)
+                {
+                    bufSize = (int)req + 64;
+                    System.Runtime.InteropServices.Marshal.FreeHGlobal(buf);
+                    buf = System.Runtime.InteropServices.Marshal.AllocHGlobal(bufSize);
+                    managed = new byte[bufSize];
+                    req = fpdf_text.FPDFTextGetFontInfo(textPage, i, buf, (uint)bufSize, ref flags);
+                }
+
+                if (req <= 1)
+                {
+                    continue;
+                }
+
+                System.Runtime.InteropServices.Marshal.Copy(buf, managed, 0, (int)req);
+                int len = (int)req;
+                while (len > 0 && managed[len - 1] == 0)
+                {
+                    len--;
+                }
+
+                string raw = System.Text.Encoding.UTF8.GetString(managed, 0, len).Trim();
+                int plus = raw.IndexOf('+');
+                if (plus > 0 && plus < raw.Length - 1)
+                {
+                    raw = raw[(plus + 1)..];
+                }
+
+                var rect = new PdfRect(
+                    Math.Min(l, r),
+                    Math.Min(pageHeight - t, pageHeight - b),
+                    Math.Max(l, r),
+                    Math.Max(pageHeight - t, pageHeight - b));
+                result.Add((rect, raw));
+            }
+        }
+        finally
+        {
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(buf);
+        }
+
+        return result;
+    }
+
+    private static string? FindCharFontAtBounds(List<(PdfRect Bounds, string FamilyName)> chars, PdfRect bounds)
+    {
+        for (int i = 0; i < chars.Count; i++)
+        {
+            if (bounds.Contains(chars[i].Bounds.CenterX, chars[i].Bounds.CenterY, padding: 2.0))
+            {
+                return chars[i].FamilyName;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool StyleMatches(FpdfFontT font, bool wantBold, bool wantItalic)
+    {
+        int angle = 0;
+        bool fontItalic = fpdf_edit.FPDFFontGetItalicAngle(font, ref angle) != 0 && angle != 0;
+        int weight = fpdf_edit.FPDFFontGetWeight(font);
+        bool fontBold = weight >= 600;
+        return fontBold == wantBold && fontItalic == wantItalic;
+    }
+
+    private static unsafe FpdfPageobjectT? TryCreateTextObjWithExistingFonts(
+        FpdfDocumentT doc,
+        FpdfPageT page,
+        List<FpdfFontT> candidates,
+        string text,
+        double fontSize)
+    {
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        var utf16 = (text + "\0").ToCharArray();
+        ushort[] codeUnits = new ushort[utf16.Length];
+        for (int k = 0; k < utf16.Length; k++)
+        {
+            codeUnits[k] = utf16[k];
+        }
+
+        foreach (var font in candidates)
+        {
+            var textObj = fpdf_edit.FPDFPageObjCreateTextObj(doc, font, (float)fontSize);
+            if (textObj is null || textObj.__Instance == IntPtr.Zero)
+            {
+                continue;
+            }
+
+            if (fpdf_edit.FPDFTextSetText(textObj, ref codeUnits[0]) == 0)
+            {
+                fpdf_edit.FPDFPageObjDestroy(textObj);
+                continue;
+            }
+
+            // Verify every character actually encodes & roundtrips through PDFium's font CMap
+            fpdf_edit.FPDFPageInsertObject(page, textObj);
+            bool valid = VerifyTextObjRoundTrip(page, textObj, text);
+            fpdf_edit.FPDFPageRemoveObject(page, textObj);
+
+            if (valid)
+            {
+                return textObj;
+            }
+
+            fpdf_edit.FPDFPageObjDestroy(textObj);
+        }
+
+        return null;
+    }
+
+    private static unsafe bool VerifyTextObjRoundTrip(FpdfPageT page, FpdfPageobjectT textObj, string expected)
+    {
+        var textPage = fpdf_text.FPDFTextLoadPage(page);
+        if (textPage is null || textPage.__Instance == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            int cap = Math.Max(64, (expected.Length * 2) + 8);
+            ushort[] buf = new ushort[cap];
+            uint byteLen = fpdf_edit.FPDFTextObjGetText(textObj, textPage, ref buf[0], (uint)(cap * 2));
+            if (byteLen <= 2)
+            {
+                return false;
+            }
+
+            int charLen = (int)(byteLen / 2) - 1;
+            if (charLen <= 0 || charLen > buf.Length)
+            {
+                return false;
+            }
+
+            string actual = new string(Array.ConvertAll(buf[..charLen], c => (char)c));
+            return string.Equals(actual, expected, StringComparison.Ordinal);
+        }
+        finally
+        {
+            fpdf_text.FPDFTextClosePage(textPage);
+        }
+    }
+
+    private static string NormalizeFamilyKey(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        string s = name.Trim();
+        int sep = s.IndexOfAny(['-', ',']);
+        if (sep > 0)
+        {
+            s = s[..sep];
+        }
+
+        if (s.EndsWith("PSMT", StringComparison.OrdinalIgnoreCase) && s.Length > 4)
+        {
+            s = s[..^4];
+        }
+        else if (s.EndsWith("MT", StringComparison.OrdinalIgnoreCase) && s.Length > 2)
+        {
+            s = s[..^2];
+        }
+
+        return s.Replace(" ", string.Empty, StringComparison.Ordinal).ToLowerInvariant();
     }
 
     private static string MapToStandard14Font(string family, bool isBold, bool isItalic)

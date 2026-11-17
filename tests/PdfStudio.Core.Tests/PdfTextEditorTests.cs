@@ -314,7 +314,7 @@ public sealed class PdfTextEditorTests
         var res = editor.ApplyTextEdit(session, new PdfTextEditRequest(
             OriginalBlock: block,
             NewText: "19.03.2026 äöüß €",
-            FontFamily: "Calibri",
+            FontFamily: block.PrimaryFontFamily,
             FontSize: block.FontSize,
             IsBold: false,
             IsItalic: false,
@@ -333,5 +333,65 @@ public sealed class PdfTextEditorTests
         var reopenedLayout = detector.DetectBlocks(reopened, 0);
         var editedBlock = Assert.Single(reopenedLayout.Blocks);
         Assert.Equal("19.03.2026 äöüß €", editedBlock.Text);
+    }
+
+    [Fact]
+    public async Task ApplyTextEdit_ArialFont_PreservesArialAndReusesEmbeddedFontWithoutHelveticaSwitch()
+    {
+        const string stream = "BT /F1 11 Tf 72 700 Td (18.03.2026) Tj ET\n";
+        var bytes = TestPdfGenerator.CreateSinglePagePdfFromStream(stream);
+        var docService = new PdfDocumentService();
+        var detector = new TextBlockDetector();
+        var editor = new PdfTextEditor();
+
+        // First edit sets the block to Arial explicitly
+        using var initialSession = await docService.OpenAsync(bytes, "arial_src.pdf");
+        var initialBlock = Assert.Single(detector.DetectBlocks(initialSession, 0).Blocks);
+        var firstEdit = editor.ApplyTextEdit(initialSession, new PdfTextEditRequest(
+            OriginalBlock: initialBlock,
+            NewText: "19.03.2026",
+            FontFamily: "Arial",
+            FontSize: 11.0,
+            IsBold: false,
+            IsItalic: false,
+            FillColor: initialBlock.PrimaryColor,
+            Alignment: PdfTextAlignment.Left,
+            LineSpacingRatio: 1.35,
+            LetterSpacingEm: 0.0,
+            TargetBounds: initialBlock.Bounds,
+            AutoReflow: false));
+        Assert.True(firstEdit.Success);
+
+        byte[] arialPdfBytes = initialSession.SaveToBytes();
+        using var reopenedArial = await docService.OpenAsync(arialPdfBytes, "arial_reopened.pdf");
+        var arialBlock = Assert.Single(detector.DetectBlocks(reopenedArial, 0).Blocks);
+        Assert.Contains("Arial", arialBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Helvetica", arialBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
+
+        // Second edit on the Arial block must stay Arial (not turn into Helvetica) and reuse the existing font
+        var secondEdit = editor.ApplyTextEdit(reopenedArial, new PdfTextEditRequest(
+            OriginalBlock: arialBlock,
+            NewText: "20.03.2026",
+            FontFamily: arialBlock.PrimaryFontFamily,
+            FontSize: arialBlock.FontSize,
+            IsBold: arialBlock.IsBold,
+            IsItalic: arialBlock.IsItalic,
+            FillColor: arialBlock.PrimaryColor,
+            Alignment: arialBlock.Alignment,
+            LineSpacingRatio: arialBlock.LineSpacingRatio,
+            LetterSpacingEm: arialBlock.LetterSpacingEm,
+            TargetBounds: arialBlock.Bounds,
+            AutoReflow: false));
+        Assert.True(secondEdit.Success);
+
+        byte[] afterSecondSave = reopenedArial.SaveToBytes();
+        Assert.True(afterSecondSave.Length < arialPdfBytes.Length + 12288,
+            $"Expected second Arial edit to reuse embedded font cleanly (before={arialPdfBytes.Length}, after={afterSecondSave.Length})");
+
+        using var finalSession = await docService.OpenAsync(afterSecondSave, "arial_final.pdf");
+        var finalBlock = Assert.Single(detector.DetectBlocks(finalSession, 0).Blocks);
+        Assert.Equal("20.03.2026", finalBlock.Text);
+        Assert.Contains("Arial", finalBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Helvetica", finalBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
     }
 }

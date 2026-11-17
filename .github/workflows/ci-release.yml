@@ -55,6 +55,14 @@ jobs:
           name: PdfStudio-win-x64
           path: dist/archives/PdfStudio-win-x64.zip
 
+      - name: Attach Windows zip to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          prerelease: ${{ startsWith(github.ref, 'refs/tags/v0.') || contains(github.ref, '-') }}
+          generate_release_notes: true
+          files: dist/archives/PdfStudio-win-x64.zip
+
   macos:
     name: Build & Package (macOS x64)
     runs-on: macos-latest
@@ -124,22 +132,10 @@ jobs:
           name: PdfStudio-macos-x64
           path: dist/archives/PdfStudio-macos-x64.zip
 
-  release:
-    name: Create GitHub Release
-    needs: [ windows, macos ]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-
-      - name: Publish GitHub Release
+      - name: Attach macOS zip to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ startsWith(github.ref, 'refs/tags/v0.') || contains(github.ref, '-') }}
           generate_release_notes: true
-          files: |
-            artifacts/PdfStudio-win-x64/PdfStudio-win-x64.zip
-            artifacts/PdfStudio-macos-x64/PdfStudio-macos-x64.zip
+          files: dist/archives/PdfStudio-macos-x64.zip

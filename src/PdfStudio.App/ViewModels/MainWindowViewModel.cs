@@ -632,14 +632,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         EditingBlock = block;
         InlineEditText = block.Text;
         IsEditingInline = true;
+        CaptureInlineEditStartSnapshot(block.Text);
         InlineLayoutUpdateRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    private (string Text, string Font, string SizeText, bool Bold, bool Italic, TextAlignMode Align,
+        string X, string Y, string W, string H, string LineSpacing, string LetterSpacing)? _inlineEditSnapshot;
+
+    private void CaptureInlineEditStartSnapshot(string text) =>
+        _inlineEditSnapshot = (
+            text.Replace("\r\n", "\n").Replace('\r', '\n'),
+            SelectedFontFamily,
+            SelectedFontSizeText,
+            IsBoldActive,
+            IsItalicActive,
+            TextAlignment,
+            BlockXText,
+            BlockYText,
+            BlockWText,
+            BlockHText,
+            LineSpacingText,
+            LetterSpacingText);
 
     public void CancelInlineEdit()
     {
         IsEditingInline = false;
         EditingBlock = null;
         InlineEditText = string.Empty;
+        _inlineEditSnapshot = null;
     }
 
     public async Task CommitInlineEditAsync()
@@ -652,10 +672,33 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var tab = ActiveTab;
         var originalBlock = EditingBlock;
+        var startSnapshot = _inlineEditSnapshot;
         string updatedText = InlineEditText;
 
         IsEditingInline = false;
         EditingBlock = null;
+        _inlineEditSnapshot = null;
+
+        string normalizedUpdated = updatedText.Replace("\r\n", "\n").Replace('\r', '\n');
+        string normalizedOriginal = originalBlock.Text.Replace("\r\n", "\n").Replace('\r', '\n');
+
+        if (startSnapshot is { } snap &&
+            string.Equals(normalizedUpdated, snap.Text, StringComparison.Ordinal) &&
+            string.Equals(SelectedFontFamily, snap.Font, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(SelectedFontSizeText, snap.SizeText, StringComparison.Ordinal) &&
+            IsBoldActive == snap.Bold &&
+            IsItalicActive == snap.Italic &&
+            TextAlignment == snap.Align &&
+            string.Equals(BlockXText, snap.X, StringComparison.Ordinal) &&
+            string.Equals(BlockYText, snap.Y, StringComparison.Ordinal) &&
+            string.Equals(BlockWText, snap.W, StringComparison.Ordinal) &&
+            string.Equals(BlockHText, snap.H, StringComparison.Ordinal) &&
+            string.Equals(LineSpacingText, snap.LineSpacing, StringComparison.Ordinal) &&
+            string.Equals(LetterSpacingText, snap.LetterSpacing, StringComparison.Ordinal))
+        {
+            tab.SelectedTextBlock = null;
+            return;
+        }
 
         double targetFontSize = ParsedFontSizePoints;
         var targetAlignment = TextAlignment switch
@@ -671,9 +714,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         double targetH = Math.Max(4.0, ParseDoubleOrFallback(BlockHText, originalBlock.Bounds.Height));
         double lineSpacing = Math.Clamp(ParseDoubleOrFallback(LineSpacingText, originalBlock.LineSpacingRatio), 0.8, 3.0);
         double letterSpacing = ParseDoubleOrFallback(LetterSpacingText.Replace("em", "", StringComparison.OrdinalIgnoreCase), originalBlock.LetterSpacingEm);
-
-        string normalizedUpdated = updatedText.Replace("\r\n", "\n").Replace('\r', '\n');
-        string normalizedOriginal = originalBlock.Text.Replace("\r\n", "\n").Replace('\r', '\n');
 
         bool unchanged = string.Equals(normalizedUpdated, normalizedOriginal, StringComparison.Ordinal)
                       && string.Equals(SelectedFontFamily, originalBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase)

@@ -746,6 +746,24 @@ public sealed class TextBlockDetector
         }
 
         cleanFamily = cleanFamily.Trim();
+        if (cleanFamily.EndsWith("PSMT", StringComparison.OrdinalIgnoreCase) && cleanFamily.Length > 4)
+        {
+            cleanFamily = cleanFamily[..^4];
+        }
+        else if (cleanFamily.EndsWith("MT", StringComparison.OrdinalIgnoreCase) && cleanFamily.Length > 2)
+        {
+            cleanFamily = cleanFamily[..^2];
+        }
+
+        if (string.Equals(cleanFamily, "TimesNewRoman", StringComparison.OrdinalIgnoreCase))
+        {
+            cleanFamily = "Times New Roman";
+        }
+        else if (string.Equals(cleanFamily, "CourierNew", StringComparison.OrdinalIgnoreCase))
+        {
+            cleanFamily = "Courier New";
+        }
+
         if (string.IsNullOrEmpty(cleanFamily))
         {
             cleanFamily = "Helvetica";

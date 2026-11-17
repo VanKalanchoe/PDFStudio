@@ -413,41 +413,33 @@ public sealed class PdfTextEditor
                     return;
                 }
 
-                string? detectedFamily = FindCharFontAtBounds(charInfos, objBounds);
-                if (detectedFamily is null && isInsideOriginalBlock)
+                string? rawFontName = FindCharFontAtBounds(charInfos, objBounds, stripSubsetPrefix: false);
+                if (rawFontName is null && isInsideOriginalBlock)
                 {
-                    detectedFamily = requestedFamily;
+                    rawFontName = requestedFamily;
                 }
 
-                if (detectedFamily is not null &&
-                    string.Equals(NormalizeFamilyKey(detectedFamily), targetFamily, StringComparison.OrdinalIgnoreCase))
+                // Never reuse external subsetted fonts (e.g. "ABCDEF+ArialMT"): their CID/width tables may be incomplete
+                if (rawFontName is null || rawFontName.Contains('+', StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                if (string.Equals(NormalizeFamilyKey(rawFontName), targetFamily, StringComparison.OrdinalIgnoreCase))
                 {
                     matches.Add(font);
                 }
             }
 
-            void CollectFromObject(FpdfPageobjectT obj, int depth)
+            // Only reuse top-level non-subset fonts owned directly by the outer page (not inside Form XObjects)
+            int count = fpdf_edit.FPDFPageCountObjects(page);
+            for (int i = 0; i < count; i++)
             {
-                if (obj is null || obj.__Instance == IntPtr.Zero || depth > 4)
+                var obj = fpdf_edit.FPDFPageGetObject(page, i);
+                if (obj is null || obj.__Instance == IntPtr.Zero ||
+                    fpdf_edit.FPDFPageObjGetType(obj) != PdfPageLayerHelper.FpdfPageObjText)
                 {
-                    return;
-                }
-
-                int type = fpdf_edit.FPDFPageObjGetType(obj);
-                if (type == PdfPageLayerHelper.FpdfPageObjForm)
-                {
-                    int childCount = fpdf_edit.FPDFFormObjCountObjects(obj);
-                    for (int c = 0; c < childCount; c++)
-                    {
-                        CollectFromObject(fpdf_edit.FPDFFormObjGetObject(obj, (uint)c), depth + 1);
-                    }
-
-                    return;
-                }
-
-                if (type != PdfPageLayerHelper.FpdfPageObjText)
-                {
-                    return;
+                    continue;
                 }
 
                 float l = 0, b = 0, r = 0, t = 0;
@@ -457,27 +449,6 @@ public sealed class PdfTextEditor
 
                 bool insideOrig = originalBlockBounds.Contains(objBounds.CenterX, objBounds.CenterY, padding: 3.0);
                 TryAddFont(fpdf_edit.FPDFTextObjGetFont(obj), objBounds, insideOrig);
-            }
-
-            int count = fpdf_edit.FPDFPageCountObjects(page);
-            for (int i = 0; i < count; i++)
-            {
-                var obj = fpdf_edit.FPDFPageGetObject(page, i);
-                if (obj is not null && obj.__Instance != IntPtr.Zero &&
-                    fpdf_edit.FPDFPageObjGetType(obj) == PdfPageLayerHelper.FpdfPageObjText)
-                {
-                    CollectFromObject(obj, 0);
-                }
-            }
-
-            for (int i = 0; i < count; i++)
-            {
-                var obj = fpdf_edit.FPDFPageGetObject(page, i);
-                if (obj is not null && obj.__Instance != IntPtr.Zero &&
-                    fpdf_edit.FPDFPageObjGetType(obj) == PdfPageLayerHelper.FpdfPageObjForm)
-                {
-                    CollectFromObject(obj, 0);
-                }
             }
         }
         finally
@@ -543,12 +514,6 @@ public sealed class PdfTextEditor
                 }
 
                 string raw = System.Text.Encoding.UTF8.GetString(managed, 0, len).Trim();
-                int plus = raw.IndexOf('+');
-                if (plus > 0 && plus < raw.Length - 1)
-                {
-                    raw = raw[(plus + 1)..];
-                }
-
                 var rect = new PdfRect(
                     Math.Min(l, r),
                     Math.Min(pageHeight - t, pageHeight - b),
@@ -565,13 +530,23 @@ public sealed class PdfTextEditor
         return result;
     }
 
-    private static string? FindCharFontAtBounds(List<(PdfRect Bounds, string FamilyName)> chars, PdfRect bounds)
+    private static string? FindCharFontAtBounds(
+        List<(PdfRect Bounds, string FamilyName)> chars,
+        PdfRect bounds,
+        bool stripSubsetPrefix = true)
     {
         for (int i = 0; i < chars.Count; i++)
         {
             if (bounds.Contains(chars[i].Bounds.CenterX, chars[i].Bounds.CenterY, padding: 2.0))
             {
-                return chars[i].FamilyName;
+                string raw = chars[i].FamilyName;
+                if (!stripSubsetPrefix)
+                {
+                    return raw;
+                }
+
+                int plus = raw.IndexOf('+');
+                return plus > 0 && plus < raw.Length - 1 ? raw[(plus + 1)..] : raw;
             }
         }
 

@@ -306,6 +306,7 @@ public sealed class PdfTextEditorTests
         var docService = new PdfDocumentService();
         var detector = new TextBlockDetector();
         var editor = new PdfTextEditor();
+        var renderer = new PdfPageRenderer();
 
         using var session = await docService.OpenAsync(bytes, "compact.pdf");
         var layout = detector.DetectBlocks(session, 0);
@@ -343,6 +344,7 @@ public sealed class PdfTextEditorTests
         var docService = new PdfDocumentService();
         var detector = new TextBlockDetector();
         var editor = new PdfTextEditor();
+        var renderer = new PdfPageRenderer();
 
         // First edit sets the block to Arial explicitly
         using var initialSession = await docService.OpenAsync(bytes, "arial_src.pdf");
@@ -391,7 +393,119 @@ public sealed class PdfTextEditorTests
         using var finalSession = await docService.OpenAsync(afterSecondSave, "arial_final.pdf");
         var finalBlock = Assert.Single(detector.DetectBlocks(finalSession, 0).Blocks);
         Assert.Equal("20.03.2026", finalBlock.Text);
+        Assert.Equal(11.0, finalBlock.FontSize, precision: 1);
+        Assert.InRange(finalBlock.Bounds.Left, initialBlock.Bounds.Left - 2, initialBlock.Bounds.Left + 2);
+        Assert.InRange(finalBlock.Bounds.Top, initialBlock.Bounds.Top - 2, initialBlock.Bounds.Top + 2);
+        Assert.InRange(finalBlock.Bounds.Width, 35, 90);
         Assert.Contains("Arial", finalBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Helvetica", finalBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
+
+        using var bmp = await renderer.RenderPageAsync(finalSession, 0, 612, 792);
+        int darkPixels = 0;
+        for (int y = (int)finalBlock.Bounds.Top - 2; y <= (int)finalBlock.Bounds.Bottom + 2; y++)
+        {
+            for (int x = (int)finalBlock.Bounds.Left - 2; x <= (int)finalBlock.Bounds.Right + 2; x++)
+            {
+                var p = bmp.GetPixel(Math.Clamp(x, 0, 611), Math.Clamp(y, 0, 791));
+                if (p.Red < 180 || p.Green < 180 || p.Blue < 180)
+                {
+                    darkPixels++;
+                }
+            }
+        }
+
+        Assert.True(darkPixels > 40, $"Expected crisp rendered dark text pixels for Arial edit, got {darkPixels}");
+    }
+
+    [Fact]
+    public async Task ApplyTextEdit_EmbeddedArialInsideWrappedBasePage_RendersCrisplyAndPreservesArial()
+    {
+        // Build a PDF whose page ALREADY has an embedded Arial font (inside original page stream)
+        var baseBytes = TestPdfGenerator.CreateSinglePagePdfFromStream("");
+        var docService = new PdfDocumentService();
+        var detector = new TextBlockDetector();
+        var editor = new PdfTextEditor();
+        var renderer = new PdfPageRenderer();
+
+        byte[] sourcePdfWithArial;
+        using (var prep = await docService.OpenAsync(baseBytes, "prep.pdf"))
+        {
+            var dummyBlock = new PdfTextBlock(
+                Id: "init",
+                PageIndex: 0,
+                Kind: PdfBlockKind.Paragraph,
+                Bounds: new PdfRect(72, 80, 140, 96),
+                Text: "Init",
+                PrimaryFontFamily: "Arial",
+                FontWeightLabel: "Regular",
+                FontSize: 12.0,
+                IsBold: false,
+                IsItalic: false,
+                PrimaryColor: new PdfColor(0, 0, 0, 255),
+                Alignment: PdfTextAlignment.Left,
+                LineSpacingRatio: 1.35,
+                LetterSpacingEm: 0.0,
+                RotationDegrees: 0.0,
+                IsEmbeddedFont: true,
+                Lines: []);
+
+            // Seed with initial Arial text so saved PDF has Arial on page 0
+            editor.ApplyTextEdit(prep, new PdfTextEditRequest(
+                OriginalBlock: dummyBlock,
+                NewText: "Datum: 18.03.2026",
+                FontFamily: "Arial",
+                FontSize: 12.0,
+                IsBold: false,
+                IsItalic: false,
+                FillColor: new PdfColor(0, 0, 0, 255),
+                Alignment: PdfTextAlignment.Left,
+                LineSpacingRatio: 1.35,
+                LetterSpacingEm: 0.0,
+                TargetBounds: dummyBlock.Bounds,
+                AutoReflow: false));
+
+            sourcePdfWithArial = prep.SaveToBytes();
+        }
+
+        // Now wrap/re-wrap like a freshly opened external PDF by opening and applying an edit
+        // (note: remove PdfStudioBasePage mark simulation by checking both unwrapped and wrapped)
+        using var session = await docService.OpenAsync(sourcePdfWithArial, "ext_arial.pdf");
+        var block = Assert.Single(detector.DetectBlocks(session, 0).Blocks);
+        var res = editor.ApplyTextEdit(session, new PdfTextEditRequest(
+            OriginalBlock: block,
+            NewText: "Datum: 25.04.2026",
+            FontFamily: block.PrimaryFontFamily,
+            FontSize: block.FontSize,
+            IsBold: block.IsBold,
+            IsItalic: block.IsItalic,
+            FillColor: block.PrimaryColor,
+            Alignment: block.Alignment,
+            LineSpacingRatio: block.LineSpacingRatio,
+            LetterSpacingEm: block.LetterSpacingEm,
+            TargetBounds: block.Bounds,
+            AutoReflow: false));
+
+        Assert.True(res.Success);
+        byte[] saved = session.SaveToBytes();
+        using var reopened = await docService.OpenAsync(saved, "ext_arial_after.pdf");
+        var afterBlock = Assert.Single(detector.DetectBlocks(reopened, 0).Blocks);
+        Assert.Equal("Datum: 25.04.2026", afterBlock.Text);
+        Assert.Contains("Arial", afterBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase);
+
+        using var bmp = await renderer.RenderPageAsync(reopened, 0, 612, 792);
+        int darkPixels = 0;
+        for (int y = (int)afterBlock.Bounds.Top - 2; y <= (int)afterBlock.Bounds.Bottom + 2; y++)
+        {
+            for (int x = (int)afterBlock.Bounds.Left - 2; x <= (int)afterBlock.Bounds.Right + 2; x++)
+            {
+                var p = bmp.GetPixel(Math.Clamp(x, 0, 611), Math.Clamp(y, 0, 791));
+                if (p.Red < 180 || p.Green < 180 || p.Blue < 180)
+                {
+                    darkPixels++;
+                }
+            }
+        }
+
+        Assert.True(darkPixels > 40, $"Expected dark pixels, got {darkPixels}");
     }
 }

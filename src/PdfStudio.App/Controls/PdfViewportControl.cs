@@ -89,6 +89,7 @@ public sealed class PdfViewportControl : Control
     private PdfRect _imageDragOriginalBounds;
     private PdfRect _imageDragCurrentBounds;
     private PdfImageObjectInfo? _hoveredImage;
+    private bool _pendingRenderDispatch;
 
     private static readonly IBrush PageShadowOuterBrush = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0));
     private static readonly IBrush PageShadowInnerBrush = new SolidColorBrush(Color.FromArgb(72, 0, 0, 0));
@@ -209,9 +210,17 @@ public sealed class PdfViewportControl : Control
                 SubscribeTab(newTab);
                 ScrollToPage(newTab.CurrentPageIndex, updateTabIndex: false);
                 TriggerVisiblePageRenders(forceRefresh: true);
+                SchedulePostLayoutRender();
             }
 
             InvalidateVisual();
+        }
+        else if (change.Property == IsVisibleProperty)
+        {
+            if (IsVisible && DocumentTab is not null)
+            {
+                SchedulePostLayoutRender();
+            }
         }
         else if (change.Property == ActiveToolProperty)
         {
@@ -226,11 +235,48 @@ public sealed class PdfViewportControl : Control
         else if (change.Property == BoundsProperty)
         {
             ClampScrollOffsets();
-            _zoomRenderDebounce.Stop();
-            _zoomRenderDebounce.Start();
+            var oldBounds = change.OldValue is Rect ob ? ob : default;
+            if (oldBounds.Width <= 0 || oldBounds.Height <= 0)
+            {
+                TriggerVisiblePageRenders(forceRefresh: false);
+            }
+            else
+            {
+                _zoomRenderDebounce.Stop();
+                _zoomRenderDebounce.Start();
+            }
+
             ViewportTransformChanged?.Invoke(this, EventArgs.Empty);
             InvalidateVisual();
         }
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (DocumentTab is not null)
+        {
+            SchedulePostLayoutRender();
+        }
+    }
+
+    private void SchedulePostLayoutRender()
+    {
+        var tabSnapshot = DocumentTab;
+        if (tabSnapshot is null)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (IsVisible && ReferenceEquals(DocumentTab, tabSnapshot))
+            {
+                ClampScrollOffsets();
+                TriggerVisiblePageRenders(forceRefresh: false);
+                InvalidateVisual();
+            }
+        }, DispatcherPriority.Loaded);
     }
 
     private void SubscribeTab(DocumentTabViewModel tab)
@@ -739,6 +785,15 @@ public sealed class PdfViewportControl : Control
                 cached.LastUsedTick = ++_tickCounter;
                 var srcRect = new Rect(0, 0, cached.Bitmap.PixelSize.Width, cached.Bitmap.PixelSize.Height);
                 context.DrawImage(cached.Bitmap, srcRect, screenRect);
+            }
+            else if (!_inFlightPages.Contains(i) && !_pendingRenderDispatch && Bounds.Width > 0 && Bounds.Height > 0)
+            {
+                _pendingRenderDispatch = true;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _pendingRenderDispatch = false;
+                    TriggerVisiblePageRenders(forceRefresh: false);
+                }, DispatcherPriority.Render);
             }
 
             context.DrawRectangle(PageBorderPen, screenRect);

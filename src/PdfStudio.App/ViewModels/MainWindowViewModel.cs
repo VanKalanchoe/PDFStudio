@@ -98,7 +98,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string _blockHText = "86";
 
     [ObservableProperty]
-    private bool _autoReflowParagraph = true;
+    private bool _autoReflowParagraph;
 
     [ObservableProperty]
     private string _findReplaceQuery = string.Empty;
@@ -667,12 +667,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         double targetX = ParseDoubleOrFallback(BlockXText, originalBlock.Bounds.Left);
         double targetY = ParseDoubleOrFallback(BlockYText, originalBlock.Bounds.Top);
-        double targetW = Math.Max(24.0, ParseDoubleOrFallback(BlockWText, originalBlock.Bounds.Width));
-        double targetH = Math.Max(12.0, ParseDoubleOrFallback(BlockHText, originalBlock.Bounds.Height));
+        double targetW = Math.Max(4.0, ParseDoubleOrFallback(BlockWText, originalBlock.Bounds.Width));
+        double targetH = Math.Max(4.0, ParseDoubleOrFallback(BlockHText, originalBlock.Bounds.Height));
         double lineSpacing = Math.Clamp(ParseDoubleOrFallback(LineSpacingText, originalBlock.LineSpacingRatio), 0.8, 3.0);
         double letterSpacing = ParseDoubleOrFallback(LetterSpacingText.Replace("em", "", StringComparison.OrdinalIgnoreCase), originalBlock.LetterSpacingEm);
 
-        bool unchanged = string.Equals(updatedText, originalBlock.Text, StringComparison.Ordinal)
+        string normalizedUpdated = updatedText.Replace("\r\n", "\n").Replace('\r', '\n');
+        string normalizedOriginal = originalBlock.Text.Replace("\r\n", "\n").Replace('\r', '\n');
+
+        bool unchanged = string.Equals(normalizedUpdated, normalizedOriginal, StringComparison.Ordinal)
                       && string.Equals(SelectedFontFamily, originalBlock.PrimaryFontFamily, StringComparison.OrdinalIgnoreCase)
                       && Math.Abs(targetFontSize - originalBlock.FontSize) < 0.1
                       && IsBoldActive == originalBlock.IsBold
@@ -684,6 +687,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (unchanged)
         {
+            tab.SelectedTextBlock = null;
             return;
         }
 

@@ -95,7 +95,7 @@ public sealed class FontFallbackResolver
         var result = new List<WrappedTextLine>();
 
         double effectiveMaxWidth = autoReflow && maxWidthPoints > 12.0
-            ? maxWidthPoints
+            ? (maxWidthPoints * 1.03) + 4.0
             : double.PositiveInfinity;
 
         // Per-codepoint fallback cache for mixed-script lines

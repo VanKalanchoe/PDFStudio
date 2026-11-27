@@ -508,4 +508,63 @@ public sealed class PdfTextEditorTests
 
         Assert.True(darkPixels > 40, $"Expected dark pixels, got {darkPixels}");
     }
+
+    [Fact]
+    public async Task ApplyTextEdit_InvisibleOcrTextLayer_NormalizesAlphaAndRendersVisibly()
+    {
+        // PDF stream with invisible OCR text layer (3 Tr => PDFium reports fill alpha = 0)
+        const string stream = "BT /F1 11 Tf 3 Tr 72 700 Td (100,00) Tj ET\n";
+        var bytes = TestPdfGenerator.CreateSinglePagePdfFromStream(stream);
+        var docService = new PdfDocumentService();
+        var detector = new TextBlockDetector();
+        var editor = new PdfTextEditor();
+        var renderer = new PdfPageRenderer();
+
+        using var session = await docService.OpenAsync(bytes, "ocr_invisible.pdf");
+        var layoutBefore = detector.DetectBlocks(session, 0);
+        var block = Assert.Single(layoutBefore.Blocks);
+
+        // Detector must normalize alpha=0 OCR text to opaque visible color
+        Assert.Equal(255, block.PrimaryColor.A);
+
+        // Even if a caller passes A=0 directly to ApplyTextEdit, PdfTextEditor must still render visibly
+        var res = editor.ApplyTextEdit(session, new PdfTextEditRequest(
+            OriginalBlock: block,
+            NewText: "250,00",
+            FontFamily: block.PrimaryFontFamily,
+            FontSize: block.FontSize,
+            IsBold: block.IsBold,
+            IsItalic: block.IsItalic,
+            FillColor: new PdfColor(0, 0, 0, 0),
+            Alignment: block.Alignment,
+            LineSpacingRatio: block.LineSpacingRatio,
+            LetterSpacingEm: block.LetterSpacingEm,
+            TargetBounds: block.Bounds,
+            AutoReflow: false));
+
+        Assert.True(res.Success, res.DiagnosticMessage);
+
+        byte[] saved = session.SaveToBytes();
+        using var reopened = await docService.OpenAsync(saved, "ocr_edited.pdf");
+        var layoutAfter = detector.DetectBlocks(reopened, 0);
+        var editedBlock = Assert.Single(layoutAfter.Blocks);
+        Assert.Equal("250,00", editedBlock.Text);
+        Assert.Equal(255, editedBlock.PrimaryColor.A);
+
+        using var bmp = await renderer.RenderPageAsync(reopened, 0, 612, 792);
+        int darkPixels = 0;
+        for (int y = (int)editedBlock.Bounds.Top - 2; y <= (int)editedBlock.Bounds.Bottom + 2; y++)
+        {
+            for (int x = (int)editedBlock.Bounds.Left - 2; x <= (int)editedBlock.Bounds.Right + 2; x++)
+            {
+                var p = bmp.GetPixel(Math.Clamp(x, 0, 611), Math.Clamp(y, 0, 791));
+                if (p.Red < 180 || p.Green < 180 || p.Blue < 180)
+                {
+                    darkPixels++;
+                }
+            }
+        }
+
+        Assert.True(darkPixels > 25, $"Expected edited OCR text to render visibly, got {darkPixels} dark pixels");
+    }
 }

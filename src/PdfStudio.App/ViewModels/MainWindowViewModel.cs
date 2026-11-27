@@ -381,17 +381,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
 
-        _selectedTextColor = block.PrimaryColor;
+        var visibleColor = block.PrimaryColor.A < 16
+            ? (block.PrimaryColor.R > 235 && block.PrimaryColor.G > 235 && block.PrimaryColor.B > 235
+                ? new PdfColor(0, 0, 0, 255)
+                : block.PrimaryColor with { A = 255 })
+            : block.PrimaryColor;
+
+        _selectedTextColor = visibleColor;
         SelectedFontFamily = block.PrimaryFontFamily;
         SelectedFontWeight = block.FontWeightLabel;
         SelectedFontSizeText = string.Format(CultureInfo.InvariantCulture, "{0:0.#} pt", block.FontSize);
         SelectedTextColorBrush = new SolidColorBrush(Color.FromArgb(
-            block.PrimaryColor.A,
-            block.PrimaryColor.R,
-            block.PrimaryColor.G,
-            block.PrimaryColor.B));
+            visibleColor.A,
+            visibleColor.R,
+            visibleColor.G,
+            visibleColor.B));
 
-        double luminance = (0.299 * block.PrimaryColor.R) + (0.587 * block.PrimaryColor.G) + (0.114 * block.PrimaryColor.B);
+        double luminance = (0.299 * visibleColor.R) + (0.587 * visibleColor.G) + (0.114 * visibleColor.B);
         InlineEditorBackgroundBrush = luminance > 175
             ? new SolidColorBrush(Color.FromArgb(238, 28, 35, 51))
             : new SolidColorBrush(Color.FromArgb(250, 255, 255, 255));

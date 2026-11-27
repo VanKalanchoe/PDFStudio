@@ -218,10 +218,24 @@ public sealed class TextBlockDetector
                             }
 
                             uint r = 0, g = 0, b = 0, a = 255;
-                            bool hasFill = fpdf_text.FPDFTextGetFillColor(textPage, i, ref r, ref g, ref b, ref a) != 0;
+                            bool hasFill = fpdf_text.FPDFTextGetFillColor(textPage, i, ref r, ref g, ref b, ref a) != 0 && a >= 16;
                             var fillColor = hasFill
                                 ? new PdfColor((byte)Math.Min(r, 255), (byte)Math.Min(g, 255), (byte)Math.Min(b, 255), (byte)Math.Min(a, 255))
                                 : new PdfColor(0, 0, 0, 255);
+
+                            if (!hasFill)
+                            {
+                                uint sr = 0, sg = 0, sb = 0, sa = 0;
+                                if (fpdf_text.FPDFTextGetStrokeColor(textPage, i, ref sr, ref sg, ref sb, ref sa) != 0 && sa >= 16)
+                                {
+                                    fillColor = new PdfColor(
+                                        (byte)Math.Min(sr, 255),
+                                        (byte)Math.Min(sg, 255),
+                                        (byte)Math.Min(sb, 255),
+                                        (byte)Math.Min(sa, 255));
+                                    hasFill = true;
+                                }
+                            }
 
                             bool objItalic = false;
                             if (!hasFill || fontWeight == 400)
@@ -229,9 +243,10 @@ public sealed class TextBlockDetector
                                 var matchedObj = FindMatchingPageTextObject(pageTextObjects, tightBounds);
                                 if (matchedObj is not null)
                                 {
-                                    if (!hasFill)
+                                    if (!hasFill && matchedObj.FillColor.A >= 16)
                                     {
                                         fillColor = matchedObj.FillColor;
+                                        hasFill = true;
                                     }
 
                                     if (fontWeight == 400 && matchedObj.FontWeight > 400)
@@ -241,6 +256,14 @@ public sealed class TextBlockDetector
 
                                     objItalic = matchedObj.IsItalic;
                                 }
+                            }
+
+                            if (fillColor.A < 16)
+                            {
+                                bool isNearWhite = fillColor.R > 235 && fillColor.G > 235 && fillColor.B > 235;
+                                fillColor = isNearWhite
+                                    ? new PdfColor(0, 0, 0, 255)
+                                    : fillColor with { A = 255 };
                             }
 
                             double angleRad = fpdf_text.FPDFTextGetCharAngle(textPage, i);
@@ -419,9 +442,24 @@ public sealed class TextBlockDetector
             editTextObjects.Add(obj);
         }
 
-        uint fr = 0, fg = 0, fb = 0, fa = 255;
-        _ = fpdf_edit.FPDFPageObjGetFillColor(obj, ref fr, ref fg, ref fb, ref fa);
-        var color = new PdfColor((byte)Math.Min(fr, 255), (byte)Math.Min(fg, 255), (byte)Math.Min(fb, 255), (byte)Math.Min(fa, 255));
+        uint fr = 0, fg = 0, fb = 0, fa = 0;
+        bool hasObjFill = fpdf_edit.FPDFPageObjGetFillColor(obj, ref fr, ref fg, ref fb, ref fa) != 0 && fa >= 16;
+        if (!hasObjFill)
+        {
+            uint sr = 0, sg = 0, sb = 0, sa = 0;
+            if (fpdf_edit.FPDFPageObjGetStrokeColor(obj, ref sr, ref sg, ref sb, ref sa) != 0 && sa >= 16)
+            {
+                fr = sr;
+                fg = sg;
+                fb = sb;
+                fa = sa;
+                hasObjFill = true;
+            }
+        }
+
+        var color = hasObjFill
+            ? new PdfColor((byte)Math.Min(fr, 255), (byte)Math.Min(fg, 255), (byte)Math.Min(fb, 255), (byte)Math.Min(fa, 255))
+            : new PdfColor(0, 0, 0, 0);
 
         float size = 0;
         _ = fpdf_edit.FPDFTextObjGetFontSize(obj, ref size);

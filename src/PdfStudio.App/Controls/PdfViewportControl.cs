@@ -1243,7 +1243,7 @@ public sealed class PdfViewportControl : Control
             var box = ToScreenBlockRect(selected.Bounds, pageScreenRect, scale);
             if (EditingBlock is not null && EditingBlock.Id == selected.Id)
             {
-                var maskColor = SamplePageBackgroundColor(pageIndex, pageScreenRect, selected.Bounds, scale);
+                var maskColor = SamplePageBackgroundColor(pageIndex, pageScreenRect, selected.Bounds, scale, selected.PrimaryColor);
                 context.FillRectangle(new SolidColorBrush(maskColor), box);
             }
             else
@@ -1256,7 +1256,12 @@ public sealed class PdfViewportControl : Control
         }
     }
 
-    private unsafe Color SamplePageBackgroundColor(int pageIndex, Rect pageScreenRect, PdfRect blockBoundsPts, double scale)
+    private unsafe Color SamplePageBackgroundColor(
+        int pageIndex,
+        Rect pageScreenRect,
+        PdfRect blockBoundsPts,
+        double scale,
+        PdfColor textColor)
     {
         if (!_pageCache.TryGetValue(pageIndex, out var cached))
         {
@@ -1271,17 +1276,60 @@ public sealed class PdfViewportControl : Control
             return Colors.White;
         }
 
-        double relX = Math.Clamp((blockBoundsPts.Left - 2.0) * scale / Math.Max(1.0, pageScreenRect.Width), 0.0, 0.99);
-        double relY = Math.Clamp((blockBoundsPts.Top - 2.0) * scale / Math.Max(1.0, pageScreenRect.Height), 0.0, 0.99);
-        int px = Math.Clamp((int)(relX * w), 0, w - 1);
-        int py = Math.Clamp((int)(relY * h), 0, h - 1);
+        double pageW = Math.Max(1.0, pageScreenRect.Width);
+        double pageH = Math.Max(1.0, pageScreenRect.Height);
+        var samples = new List<(byte R, byte G, byte B)>(20);
 
-        using var fb = bmp.Lock();
-        byte* row = (byte*)fb.Address.ToPointer() + (py * fb.RowBytes);
-        byte b = row[(px * 4) + 0];
-        byte g = row[(px * 4) + 1];
-        byte r = row[(px * 4) + 2];
-        return Color.FromRgb(r, g, b);
+        using (var fb = bmp.Lock())
+        {
+            void SampleAt(double ptX, double ptY)
+            {
+                double relX = Math.Clamp(ptX * scale / pageW, 0.0, 0.999);
+                double relY = Math.Clamp(ptY * scale / pageH, 0.0, 0.999);
+                int px = Math.Clamp((int)(relX * w), 0, w - 1);
+                int py = Math.Clamp((int)(relY * h), 0, h - 1);
+                byte* row = (byte*)fb.Address.ToPointer() + (py * fb.RowBytes);
+                samples.Add((row[(px * 4) + 2], row[(px * 4) + 1], row[(px * 4) + 0]));
+            }
+
+            for (int step = 0; step <= 4; step++)
+            {
+                double t = step / 4.0;
+                double x = blockBoundsPts.Left + (blockBoundsPts.Width * t);
+                double y = blockBoundsPts.Top + (blockBoundsPts.Height * t);
+                SampleAt(x, blockBoundsPts.Top - 1.5);
+                SampleAt(x, blockBoundsPts.Bottom + 1.5);
+                SampleAt(blockBoundsPts.Left - 2.0, y);
+                SampleAt(blockBoundsPts.Right + 2.0, y);
+            }
+        }
+
+        static int ColorDist((byte R, byte G, byte B) c, PdfColor t) =>
+            Math.Abs(c.R - t.R) + Math.Abs(c.G - t.G) + Math.Abs(c.B - t.B);
+
+        var groups = samples
+            .GroupBy(c => (R: (byte)(c.R & 0xFC), G: (byte)(c.G & 0xFC), B: (byte)(c.B & 0xFC)))
+            .OrderByDescending(g => g.Count())
+            .ThenByDescending(g => g.Key.R + g.Key.G + g.Key.B)
+            .ToList();
+
+        var chosen = groups[0];
+        if (ColorDist(chosen.Key, textColor) < 42)
+        {
+            var contrasting = groups.FirstOrDefault(g => ColorDist(g.Key, textColor) >= 42);
+            if (contrasting is not null)
+            {
+                chosen = contrasting;
+            }
+            else
+            {
+                double lum = (0.299 * textColor.R) + (0.587 * textColor.G) + (0.114 * textColor.B);
+                return lum > 175 ? Color.FromRgb(28, 35, 51) : Colors.White;
+            }
+        }
+
+        var best = chosen.First();
+        return Color.FromRgb(best.R, best.G, best.B);
     }
 
     private static Rect ToScreenBlockRect(PdfRect bounds, Rect pageScreenRect, double scale)

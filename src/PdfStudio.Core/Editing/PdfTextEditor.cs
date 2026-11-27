@@ -62,12 +62,23 @@ public sealed class PdfTextEditor
             var loadedFonts = new Dictionary<string, FpdfFontT>(StringComparer.OrdinalIgnoreCase);
             try
             {
+                var effectiveFillColor = request.FillColor.A < 16
+                    ? (request.FillColor.R > 235 && request.FillColor.G > 235 && request.FillColor.B > 235
+                        ? new PdfColor(0, 0, 0, 255)
+                        : request.FillColor with { A = 255 })
+                    : request.FillColor;
+
                 int removedCount = RemoveMatchingEditObjects(page, pageHeight, request.OriginalBlock.Bounds);
 
                 if (!HasMaskCoveringBounds(page, pageHeight, request.OriginalBlock.Bounds) &&
                     !request.OriginalBlock.Bounds.IsEmpty)
                 {
-                    var bgColor = PdfPageLayerHelper.SamplePageBackgroundColorLocked(page, pageWidth, pageHeight, request.OriginalBlock.Bounds);
+                    var bgColor = PdfPageLayerHelper.SamplePageBackgroundColorLocked(
+                        page,
+                        pageWidth,
+                        pageHeight,
+                        request.OriginalBlock.Bounds,
+                        effectiveFillColor);
                     var b = request.OriginalBlock.Bounds;
                     float maskX = (float)Math.Max(0, b.Left - 0.8);
                     float maskY = (float)Math.Max(0, pageHeight - b.Bottom - 1.0);
@@ -191,10 +202,10 @@ public sealed class PdfTextEditor
                         fpdf_edit.FPDFPageObjSetMatrix(textObj, matrix);
                         fpdf_edit.FPDFPageObjSetFillColor(
                             textObj,
-                            request.FillColor.R,
-                            request.FillColor.G,
-                            request.FillColor.B,
-                            request.FillColor.A);
+                            effectiveFillColor.R,
+                            effectiveFillColor.G,
+                            effectiveFillColor.B,
+                            effectiveFillColor.A);
 
                         fpdf_edit.FPDFPageObjAddMark(textObj, PdfPageLayerHelper.MarkEdit);
                         fpdf_edit.FPDFPageInsertObject(page, textObj);

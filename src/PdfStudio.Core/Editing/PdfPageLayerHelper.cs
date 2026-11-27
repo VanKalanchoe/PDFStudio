@@ -184,7 +184,8 @@ internal static class PdfPageLayerHelper
         FpdfPageT page,
         double pageWidth,
         double pageHeight,
-        PdfRect bounds)
+        PdfRect bounds,
+        PdfColor? avoidTextColor = null)
     {
         int bmpW = Math.Clamp((int)Math.Ceiling(pageWidth), 32, 2048);
         int bmpH = Math.Clamp((int)Math.Ceiling(pageHeight), 32, 2048);
@@ -232,13 +233,29 @@ internal static class PdfPageLayerHelper
                 SampleAt(bounds.Right + 2.0, y);
             }
 
-            var best = samples
+            var groups = samples
                 .GroupBy(c => (R: (byte)(c.R & 0xFC), G: (byte)(c.G & 0xFC), B: (byte)(c.B & 0xFC)))
                 .OrderByDescending(g => g.Count())
                 .ThenByDescending(g => g.Key.R + g.Key.G + g.Key.B)
-                .First()
-                .First();
+                .ToList();
 
+            var chosenGroup = groups[0];
+            if (avoidTextColor is { } tc)
+            {
+                static int ColorDist((byte R, byte G, byte B) c, PdfColor t) =>
+                    Math.Abs(c.R - t.R) + Math.Abs(c.G - t.G) + Math.Abs(c.B - t.B);
+
+                if (ColorDist(chosenGroup.Key, tc) < 36)
+                {
+                    var contrasting = groups.FirstOrDefault(g => ColorDist(g.Key, tc) >= 36);
+                    if (contrasting is not null)
+                    {
+                        chosenGroup = contrasting;
+                    }
+                }
+            }
+
+            var best = chosenGroup.First();
             return new PdfColor(best.R, best.G, best.B, 255);
         }
         finally
